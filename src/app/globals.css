@@ -1,42 +1,90 @@
 @import "tailwindcss";
 
-/* =================================
-   1. COLOR TOKENS
-   ================================= */
+/* =========================================================
+   용용톤 디자인 토큰 (Tailwind CSS v4)
+   출처: Figma "디자인 · 웜 파스텔" / 변수 컬렉션 "용용톤 / Color"
+   사용 예: bg-primary-strong, text-text-secondary, border-line-strong,
+           text-title, rounded-card, shadow-pop
+   ========================================================= */
 
 @theme {
-  --color-primary: #2563eb;
-  --color-secondary: #0f766e;
+  /* 글꼴: layout.tsx에서 next/font로 불러온 Noto Sans KR */
+  --font-sans: var(--font-noto-sans-kr), system-ui, -apple-system, sans-serif;
 
-  --color-background: #f8fafc;
-  --color-surface: #ffffff;
+  /* 배경 */
+  --color-bg-base: #FFF8F1;
+  --color-bg-surface: #FFFFFF;
+  --color-bg-subtle: #FBF0E6;
 
-  --color-foreground: #111827;
-  --color-muted: #6b7280;
+  /* 메인 (테라코타) */
+  --color-primary-strong: #B9553A;
+  --color-primary-base: #F4B39A;
+  --color-primary-soft: #FDE8DD;
 
-  --color-border: #e5e7eb;
-  --color-danger: #ef4444;
+  /* 보조 */
+  --color-mint-strong: #4F7A42;
+  --color-mint-base: #D3E5BE;
+  --color-mint-soft: #F0F6E6;
+  --color-peach-strong: #A9611F;
+  --color-peach-base: #FFD9A8;
+  --color-peach-soft: #FFF2DF;
+  --color-sky-strong: #4E78A0;
+  --color-sky-base: #CFE0EC;
+  --color-sky-soft: #EEF4F8;
+  --color-butter-base: #FFE6A0;
+  --color-butter-soft: #FFF8E0;
+  --color-pink-strong: #BF4A63; /* 오류·위험 */
+  --color-pink-soft: #FDE7EA;
 
-  /* =================================
-     2. RADIUS TOKENS
-     ================================= */
+  /* 글자 */
+  --color-text-primary: #3B2F2A;
+  --color-text-secondary: #7A6B63;
+  --color-text-tertiary: #B0A39A;
+  --color-text-on-primary: #FFFFFF;
 
-  --radius-card: 12px;
-  --radius-control: 8px;
+  /* 선 */
+  --color-line-base: #F3E9E0;
+  --color-line-strong: #E6D7CA;
 
-  /* =================================
-     3. FONT TOKENS
-     ================================= */
+  /* 글자 크기 (고령 보호자 기준 큰 글씨) */
+  --text-title-lg: 26px; --text-title-lg--line-height: 1.35;
+  --text-title: 24px;    --text-title--line-height: 1.35;
+  --text-heading: 19px;  --text-heading--line-height: 1.35;
+  --text-subhead: 17px;  --text-subhead--line-height: 1.45;
+  --text-body-lg: 16px;  --text-body-lg--line-height: 1.5;
+  --text-body: 15px;     --text-body--line-height: 1.5;
+  --text-caption: 13px;  --text-caption--line-height: 1.45;
+  --text-micro: 12px;    --text-micro--line-height: 1.4;
 
-  --font-sans: Arial, sans-serif;
+  /* 모서리 */
+  --radius-chip: 9999px;
+  --radius-input: 14px;
+  --radius-button: 16px;
+  --radius-card: 20px;
+  --radius-sheet: 28px;
+
+  /* 그림자 */
+  --shadow-pop: 0 8px 24px rgba(59, 47, 42, 0.16);
+  --shadow-sheet: 0 -8px 24px rgba(115, 64, 38, 0.08);
+
+  /* ---------- 기존 토큰 이름 호환 ----------
+     세훈님이 처음 세팅한 이름(bg-primary, text-muted 등)을 그대로 쓸 수 있게
+     값만 웜 파스텔로 맞춤. 새 코드는 위의 이름을 사용 */
+  --color-primary: #B9553A;
+  --color-secondary: #4F7A42;
+  --color-background: #FFF8F1;
+  --color-surface: #FFFFFF;
+  --color-foreground: #3B2F2A;
+  --color-muted: #7A6B63;
+  --color-border: #E6D7CA;
+  --color-danger: #BF4A63;
+  --radius-control: 14px;
 }
 
-/* =================================
-   4. GLOBAL STYLE
-   ================================= */
-
-body {
-  background-color: var(--color-background);
-  color: var(--color-foreground);
-  font-family: Arial, sans-serif;
+@layer base {
+  body {
+    background-color: var(--color-bg-base);
+    color: var(--color-text-primary);
+    letter-spacing: -0.015em;
+  }
 }
