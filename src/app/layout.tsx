@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { Noto_Sans_KR } from "next/font/google";
 import BottomNav from "@/components/common/BottomNav";
 import "./globals.css";
 
-// 디자인 폰트: Noto Sans KR (globals.css의 --font-sans가 이 변수를 씀)
 const notoSansKr = Noto_Sans_KR({
   variable: "--font-noto-sans-kr",
   weight: ["400", "500", "700"],
@@ -21,7 +21,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html lang="ko" className={`${notoSansKr.variable} h-full antialiased`}>
       <body className="mx-auto flex min-h-full w-full max-w-[430px] flex-col font-sans">
         {children}
-        <BottomNav />
+        <Suspense fallback={null}>
+          <BottomNav />
+        </Suspense>
       </body>
     </html>
   );
