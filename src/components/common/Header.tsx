@@ -1,41 +1,39 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
-import { ChevronLeftIcon } from "../icons/Icons";
+import { useRouter } from "next/navigation";
+import { ChevronLeftIcon } from "@/components/icons/Icons";
 
 type HeaderProps = {
-  title: string;
-  subtitle?: string;
-  /** 왼쪽 위 뒤로가기(‹) 표시 */
+  title: ReactNode;
+  subtitle?: ReactNode;
   back?: boolean;
-  /** 기본은 router.back(). 미저장 변경 확인 등이 필요하면 직접 전달 */
   onBack?: () => void;
-  /** 제목 오른쪽 요소 (예: 공유 버튼, 갱신일 칩) */
   right?: ReactNode;
 };
 
-/** 화면 상단 제목 영역 */
-export default function Header({ title, subtitle, back = false, onBack, right }: HeaderProps) {
+/** Figma header: 제목 24 Bold, 부제 15 secondary, 간격 4 / 뒤로가기 ‹ 26 */
+export default function Header({ title, subtitle, back, onBack, right }: HeaderProps) {
   const router = useRouter();
+
   return (
-    <header className="px-6 pt-4 pb-2">
+    <header className={`flex flex-col px-6 pb-5 ${back ? "pt-1" : "pt-6"}`}>
       {back && (
         <button
           type="button"
           aria-label="뒤로 가기"
           onClick={onBack ?? (() => router.back())}
-          className="-ml-2.5 mb-2 flex h-11 w-11 items-center justify-center text-text-primary"
+          className="-ml-[17px] mb-[5px] flex h-11 w-11 items-center justify-center text-text-primary"
         >
           <ChevronLeftIcon size={26} />
         </button>
       )}
       <div className="flex items-start gap-3">
-        <div className="min-w-0 flex-1">
+        <div className="flex min-w-0 flex-1 flex-col gap-1">
           <h1 className="text-title font-bold text-text-primary">{title}</h1>
-          {subtitle && <p className="mt-1 text-body text-text-secondary">{subtitle}</p>}
+          {subtitle && <p className="text-body leading-[1.45] text-text-secondary">{subtitle}</p>}
         </div>
-        {right}
+        {right && <div className="mt-2 shrink-0">{right}</div>}
       </div>
     </header>
   );
