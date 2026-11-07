@@ -1,51 +1,122 @@
 // src/lib/auth/session.ts
-// 토큰 보관과 갱신을 담당합니다.
+// 로그인 상태 보관 (API 명세 1. 공통 규약 기준)
 //
-// 방식 (백엔드 A와 확정 필요)
-// - access token: 브라우저 메모리에만 보관 (localStorage에 저장하지 않음)
-// - refresh token: 백엔드가 httpOnly 쿠키로 내려줌 → JS에서 읽을 수 없어 안전
-// - 새로고침하면 메모리가 비므로, 앱 시작 시 refreshAccessToken()으로 다시 받아옴
+// - access token은 localStorage에 저장하고, 요청마다 Authorization 헤더로 보냅니다. 쿠키는 쓰지 않습니다.
+// - 토큰은 7일 유효, 갱신(Refresh) 없음. 만료되면 다시 로그인합니다.
+// - 로그아웃 = 이 파일의 clearSession() (서버 호출 없음)
+// - /subjects/{subjectId}/… API에 쓸 대상자 ID도 함께 보관합니다. (MVP는 사용자당 대상자 1명)
 //
-// TODO: 백엔드 A에게 갱신 API 주소와 응답 필드 이름 확인 후 아래 두 값 수정
+// 사용 예
+//   로그인 성공(AUTH-03)  → saveLogin(response)
+//   온보딩 완료(ONB-01)  → setSubjectId(response.subjectId)
+//   초대 수락(INVITE-05) → setSubjectId(response.subjectId)
+//   로그아웃·탈퇴        → clearSession()
 
-const REFRESH_PATH = '/auth/refresh'; // TODO: 실제 경로로 교체
-const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? '';
+const TOKEN_KEY = 'yongyong.accessToken';
+const EXPIRES_AT_KEY = 'yongyong.tokenExpiresAt';
+const SUBJECT_ID_KEY = 'yongyong.subjectId';
 
-let accessToken: string | null = null;
-let refreshing: Promise<boolean> | null = null;
+export type SubjectRole = 'OWNER' | 'CO_MANAGER';
 
-export function getAccessToken() {
-  return accessToken;
+export type SubjectSummary = {
+  subjectId: number;
+  name: string;
+  /** TODO(백엔드 A): AUTH-03 예시는 OWNER, INVITE-05 예시는 CO_MANAGER — 공동 관리자 값 이름 확인 */
+  role: SubjectRole | string;
+};
+
+/** AUTH-03 로그인 응답 중 세션에 필요한 부분 */
+export type LoginSessionData = {
+  accessToken: string;
+  /** 초 단위 (604800 = 7일) */
+  expiresIn: number;
+  subjects: SubjectSummary[];
+};
+
+/* ───────────── localStorage 안전하게 쓰기 ─────────────
+   서버 렌더링 중이거나, 사생활 보호 모드·저장 공간 차단이면 실패할 수 있어 모두 감쌉니다. */
+
+function read(key: string): string | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    return window.localStorage.getItem(key);
+  } catch {
+    return null;
+  }
 }
 
-export function setAccessToken(token: string | null) {
-  accessToken = token;
+function write(key: string, value: string | null) {
+  if (typeof window === 'undefined') return;
+  try {
+    if (value === null) window.localStorage.removeItem(key);
+    else window.localStorage.setItem(key, value);
+  } catch {
+    /* 저장 실패 시에는 이번 방문 동안 로그인이 유지되지 않을 수 있음 */
+  }
+  window.dispatchEvent(new Event(SESSION_EVENT));
 }
 
+/* ───────────── 로그인 상태 변화 알림 (AuthGuard 등에서 사용) ───────────── */
+
+const SESSION_EVENT = 'yongyong:session';
+
+/** 로그인·로그아웃(다른 탭 포함) 때 callback 호출. 해제 함수를 돌려줌 */
+export function subscribeSession(callback: () => void) {
+  if (typeof window === 'undefined') return () => {};
+  window.addEventListener(SESSION_EVENT, callback);
+  window.addEventListener('storage', callback);
+  return () => {
+    window.removeEventListener(SESSION_EVENT, callback);
+    window.removeEventListener('storage', callback);
+  };
+}
+
+/* ───────────── 토큰 ───────────── */
+
+/** 저장된 토큰. 없거나 만료됐으면 null (만료된 토큰은 지움) */
+export function getAccessToken(): string | null {
+  const token = read(TOKEN_KEY);
+  if (!token) return null;
+
+  const expiresAt = Number(read(EXPIRES_AT_KEY));
+  if (expiresAt && Date.now() >= expiresAt) {
+    clearSession();
+    return null;
+  }
+  return token;
+}
+
+export function setAccessToken(token: string, expiresInSeconds?: number) {
+  write(TOKEN_KEY, token);
+  write(EXPIRES_AT_KEY, expiresInSeconds ? String(Date.now() + expiresInSeconds * 1000) : null);
+}
+
+export function isLoggedIn() {
+  return getAccessToken() !== null;
+}
+
+/* ───────────── 대상자 ───────────── */
+
+export function getSubjectId(): number | null {
+  const value = Number(read(SUBJECT_ID_KEY));
+  return Number.isFinite(value) && value > 0 ? value : null;
+}
+
+export function setSubjectId(subjectId: number | null) {
+  write(SUBJECT_ID_KEY, subjectId === null ? null : String(subjectId));
+}
+
+/* ───────────── 로그인·로그아웃 ───────────── */
+
+/** 로그인 응답(AUTH-03)을 저장. 대상자가 있으면 첫 번째 대상자를 현재 대상자로 */
+export function saveLogin(data: LoginSessionData) {
+  setAccessToken(data.accessToken, data.expiresIn);
+  setSubjectId(data.subjects[0]?.subjectId ?? null);
+}
+
+/** 로그아웃: 토큰과 대상자 ID 삭제 */
 export function clearSession() {
-  accessToken = null;
-}
-
-/** 동시에 여러 요청이 401을 받아도 갱신 요청은 한 번만 보냄 */
-export function refreshAccessToken(): Promise<boolean> {
-  if (refreshing) return refreshing;
-
-  refreshing = (async () => {
-    try {
-      const res = await fetch(`${BASE_URL}${REFRESH_PATH}`, {
-        method: 'POST',
-        credentials: 'include',
-      });
-      if (!res.ok) return false;
-      const data = await res.json();
-      setAccessToken(data.accessToken ?? null); // TODO: 응답 필드 이름 확인
-      return Boolean(accessToken);
-    } catch {
-      return false;
-    } finally {
-      refreshing = null;
-    }
-  })();
-
-  return refreshing;
+  write(TOKEN_KEY, null);
+  write(EXPIRES_AT_KEY, null);
+  write(SUBJECT_ID_KEY, null);
 }

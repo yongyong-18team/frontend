@@ -17,7 +17,7 @@ const TABS: Tab[] = [
 ];
 
 // GNB를 숨길 경로 (수신자 페이지 4.4, 로그인). 온보딩 경로가 생기면 추가
-const HIDDEN_PREFIXES = ["/s/", "/login"];
+const HIDDEN_PREFIXES = ["/s/", "/login", "/onboarding"];
 
 /**
  * 하단 내비게이션 (높이 84, 화면 아래 고정)

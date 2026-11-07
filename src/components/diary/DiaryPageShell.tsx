@@ -13,13 +13,15 @@ type Props = {
   desc: string;
   /** 뒤로가기 동작을 바꾸고 싶을 때. 기본은 브라우저 뒤로가기 */
   onBack?: () => void;
+  /** 오른쪽 위 버튼 (예: 기록 삭제) */
+  right?: ReactNode;
   children: ReactNode;
 };
 
-export default function DiaryPageShell({ title, desc, onBack, children }: Props) {
+export default function DiaryPageShell({ title, desc, onBack, right, children }: Props) {
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-[390px] flex-col bg-bg-base pt-10 pb-[104px]">
-      <Header title={title} subtitle={desc} back onBack={onBack} />
+      <Header title={title} subtitle={desc} back onBack={onBack} right={right} />
       <div className="flex flex-1 flex-col px-6">{children}</div>
     </main>
   );
