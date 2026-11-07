@@ -21,6 +21,8 @@ type Props = {
   /** 서버 문장과 다르게 고쳤거나, 이전에 수정 후 승인된 항목 */
   edited: boolean;
   disabled?: boolean;
+  /** false면 승인됨을 다시 눌러도 검토 대기로 안 돌아감 (이미 반영한 항목) */
+  canUnapprove?: boolean;
   onStatusChange: (status: ItemStatus) => void;
   onEdit: () => void;
 };
@@ -28,7 +30,16 @@ type Props = {
 // 카드 안 버튼은 높이 46 (B의 Button 기본 56을 덮어씀)
 const CARD_BUTTON = 'h-[46px]! flex-1';
 
-export default function ReviewItemCard({ item, status, content, edited, disabled = false, onStatusChange, onEdit }: Props) {
+export default function ReviewItemCard({
+  item,
+  status,
+  content,
+  edited,
+  disabled = false,
+  canUnapprove = true,
+  onStatusChange,
+  onEdit,
+}: Props) {
   const chip = getItemChip(item);
   const isApproved = status === 'APPROVED';
   const isExcluded = status === 'EXCLUDED';
@@ -76,7 +87,8 @@ export default function ReviewItemCard({ item, status, content, edited, disabled
             variant="outline"
             fullWidth={false}
             className={CARD_BUTTON}
-            onClick={() => onStatusChange('PENDING')}
+            // 처음부터 검토 대기였던 항목은 검토 대기로, 이미 반영한 항목은 승인으로 되돌림
+            onClick={() => onStatusChange(canUnapprove ? 'PENDING' : 'APPROVED')}
             disabled={disabled}
           >
             제외 취소
@@ -97,8 +109,11 @@ export default function ReviewItemCard({ item, status, content, edited, disabled
               fullWidth={false}
               className={`${CARD_BUTTON} gap-1`}
               aria-pressed={isApproved}
-              // 승인됨을 다시 누르면 검토 대기로 되돌림
-              onClick={() => onStatusChange(isApproved ? 'PENDING' : 'APPROVED')}
+              // 승인됨을 다시 누르면 검토 대기로 되돌림 (이미 반영한 항목은 되돌릴 수 없어서 그대로)
+              onClick={() => {
+                if (!isApproved) onStatusChange('APPROVED');
+                else if (canUnapprove) onStatusChange('PENDING');
+              }}
               disabled={disabled}
             >
               {isApproved ? (

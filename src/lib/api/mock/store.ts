@@ -222,22 +222,35 @@ export function getDiaryDetail(diaryId: number): DiaryDetail {
 
 export function reviewItems(diaryId: number, decisions: ReviewDecision[]): ReviewResult {
   const d = find(diaryId);
-  if (!decisions.some((x) => x.status === 'APPROVED')) {
+  // TODO(백엔드 A): 명세에 GUIDE_NOTHING_TO_APPLY 조건이 정확히 없음. 여기서는 "보낸 결정이 하나도 없을 때"로 가정
+  if (decisions.length === 0) {
     throw new ApiError(400, 'GUIDE_NOTHING_TO_APPLY', '반영할 항목을 하나 이상 선택해 주세요.');
   }
 
   const result: ReviewResult = { approvedCount: 0, excludedCount: 0, duplicateSkippedCount: 0, createdGuideEntryIds: [] };
+  const guide = db().guide;
+  const removeFromGuide = (key: string) => {
+    const at = guide.indexOf(key);
+    if (at >= 0) guide.splice(at, 1);
+  };
+
   for (const decision of decisions) {
     const item = d.items.find((i) => i.itemNo === decision.itemNo);
     if (!item) throw new ApiError(404, 'GUIDE_ITEM_NOT_FOUND', '항목을 찾을 수 없어요.');
+    const oldKey = `${item.section}|${item.content}`;
+    const wasApproved = item.status === 'APPROVED';
 
     if (decision.status === 'EXCLUDED') {
+      // TODO(백엔드 A): 이미 반영한 항목을 제외하면 설명서에서도 빠지는지 확인. 가짜 서버는 뺌
+      if (wasApproved) removeFromGuide(oldKey);
       item.status = 'EXCLUDED';
       result.excludedCount += 1;
       continue;
     }
 
     if (decision.content && decision.content !== item.content) {
+      // TODO(백엔드 A): 이미 반영한 항목 문장을 고치면 설명서 항목도 고쳐지는지 확인. 가짜 서버는 바꿈
+      if (wasApproved) removeFromGuide(oldKey);
       item.content = decision.content;
       item.edited = true;
     }
@@ -245,10 +258,10 @@ export function reviewItems(diaryId: number, decisions: ReviewDecision[]): Revie
     result.approvedCount += 1;
 
     const key = `${item.section}|${item.content}`;
-    if (db().guide.includes(key)) {
-      result.duplicateSkippedCount += 1;
+    if (guide.includes(key)) {
+      if (!wasApproved || key !== oldKey) result.duplicateSkippedCount += 1;
     } else {
-      db().guide.push(key);
+      guide.push(key);
       result.createdGuideEntryIds.push(db().nextGuideId++);
     }
   }

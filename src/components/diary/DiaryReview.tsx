@@ -5,7 +5,8 @@
 //
 // - 항목은 서버 상태(PENDING·APPROVED·EXCLUDED)로 시작 → 2.4에서 다시 열어도 지난 결과가 보임
 // - "수정"은 항목 문장을 고쳐서 승인 (ITEM-01의 content)
-// - 바뀐 항목만 보냄. 승인이 하나도 없으면 반영할 수 없음 (GUIDE_NOTHING_TO_APPLY)
+// - 바뀐 항목만 보냄. 바뀐 게 하나라도 있으면 반영 가능 (이미 승인한 항목을 제외로 바꾸는 것도 포함)
+// - 이미 승인·제외한 항목은 검토 대기로 되돌릴 수 없음 (명세에 PENDING 요청이 없음) → 승인/제외로만 바꿈
 // - 검토 대기 항목이 남은 채로 반영하면 확인 팝업 → 검토 대기 항목은 그대로 남음
 // - 바꾼 내용이 있는데 뒤로가기 → "저장하지 않고 나가시겠어요?" (기획 문구 확정안 v1.4)
 // - 오른쪽 위 "삭제" → DIARY-05
@@ -146,14 +147,14 @@ function ReviewForm({ diaryId, items, onDone }: { diaryId: number; items: DiaryI
     else submit();
   };
 
-  const canSubmit = approvingCount > 0 && !submitting;
+  const canSubmit = decisions.length > 0 && !submitting;
   const submitLabel = submitting
     ? '반영하는 중…'
     : approvingCount > 0 && counts.PENDING === 0
       ? `승인한 ${approvingCount}개 항목 반영하기`
       : '설명서에 반영하기';
   // 버튼이 꺼져 있는 이유 (기획 확정안 "선택 없음")
-  const disabledReason = submitting || canSubmit ? null : decisions.length === 0 && counts.PENDING === 0 ? '바뀐 내용이 없어요.' : '반영할 정보를 선택해 주세요.';
+  const disabledReason = submitting || canSubmit ? null : counts.PENDING > 0 ? '반영할 정보를 선택해 주세요.' : '바뀐 내용이 없어요.';
 
   // 바꾼 내용이 있으면 나가기 전에 확인
   const hasChanges = decisions.length > 0 || items.some((item) => review[item.itemNo].status !== item.status);
@@ -181,6 +182,8 @@ function ReviewForm({ diaryId, items, onDone }: { diaryId: number; items: DiaryI
               content={now.content}
               edited={now.content !== item.content || !!item.edited}
               disabled={submitting}
+              // 서버에서 이미 승인·제외된 항목은 검토 대기로 못 돌림
+              canUnapprove={item.status === 'PENDING'}
               onStatusChange={(status) => update(item.itemNo, { status })}
               onEdit={() => setEditingNo(item.itemNo)}
             />
@@ -226,7 +229,7 @@ function ReviewForm({ diaryId, items, onDone }: { diaryId: number; items: DiaryI
           <>
             검토 대기 항목은 설명서에 반영되지 않아요.
             <br />
-            승인한 {approvingCount}개만 반영할까요?
+            {approvingCount > 0 ? `승인한 ${approvingCount}개만 반영할까요?` : '바꾼 내용만 저장할까요?'}
           </>
         }
         cancelLabel="계속 검토"
