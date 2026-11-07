@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { Noto_Sans_KR } from "next/font/google";
+import AuthGuard from '@/components/auth/AuthGuard';
 import BottomNav from "@/components/common/BottomNav";
 import "./globals.css";
 
@@ -20,8 +21,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="ko" className={`${notoSansKr.variable} h-full antialiased`}>
       <body className="mx-auto flex min-h-full w-full max-w-[430px] flex-col font-sans">
-        {children}
         <Suspense fallback={null}>
+          <AuthGuard>{children}</AuthGuard>
           <BottomNav />
         </Suspense>
       </body>

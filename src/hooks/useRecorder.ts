@@ -2,7 +2,8 @@
 // 브라우저 녹음 훅 (MediaRecorder)
 //
 // - 브라우저마다 지원 형식이 달라서 가능한 형식을 자동으로 고릅니다.
-//   (크롬·안드로이드: webm / 아이폰 Safari: mp4)
+//   (크롬·안드로이드: webm / 아이폰 Safari: mp4) — STT-01이 받는 형식만 사용
+// - 최대 3분 (STT-01 제한). 3분이 되면 자동으로 멈춥니다.
 // - 녹음이 끝나면 onComplete(녹음 파일)를 한 번 호출합니다.
 // - 화면을 떠나거나 앱이 백그라운드로 가면 녹음을 멈춥니다.
 // - 마이크 권한이 거부돼 있으면 permission이 'denied'가 되고,
@@ -26,7 +27,6 @@ const MIME_CANDIDATES = [
   'audio/webm;codecs=opus',
   'audio/webm',
   'audio/mp4',
-  'audio/ogg;codecs=opus',
 ];
 
 function pickMimeType() {
@@ -35,12 +35,12 @@ function pickMimeType() {
 }
 
 type Options = {
-  /** 최대 녹음 길이(초). 넘으면 자동 종료. TODO(백엔드 B): 서버 허용 길이 확인 */
+  /** 최대 녹음 길이(초). 넘으면 자동 종료. 기본 180초 (STT-01: 3분·10MB) */
   maxSeconds?: number;
   onComplete?: (audio: Blob, seconds: number) => void;
 };
 
-export function useRecorder({ maxSeconds = 300, onComplete }: Options = {}) {
+export function useRecorder({ maxSeconds = 180, onComplete }: Options = {}) {
   const [status, setStatus] = useState<RecorderStatus>('idle');
   const [error, setError] = useState<RecorderError | null>(null);
   const [permission, setPermission] = useState<MicPermission>('unknown');

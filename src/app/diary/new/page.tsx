@@ -20,13 +20,14 @@ import Header from '@/components/common/Header';
 import MicPermissionSheet from '@/components/diary/MicPermissionSheet';
 import { InfoIcon, MicIcon, MicOffIcon } from '@/components/icons/Icons';
 import { useRecorder, type RecorderError } from '@/hooks/useRecorder';
-import { requestDiaryAnalysis, transcribeAudio } from '@/lib/api/diary';
-import { formatKoreanDate } from '@/lib/date';
+import { ApiError, CLIENT_ERROR, getErrorMessage } from '@/lib/api/client';
+import { createDiary, STT_MAX_BYTES, STT_MAX_SECONDS, transcribeAudio } from '@/lib/api/diary';
+import { formatKoreanDate, toDateKey } from '@/lib/date';
 
 const MAX_LENGTH = 1000;
 
 // TODO: 온보딩에서 저장한 아이 이름으로 교체
-const CHILD_NAME = '민준';
+const STT_FAILED_MESSAGE = '음성을 글로 바꾸지 못했어요. 다시 시도하거나 직접 입력해 주세요.';
 
 // useSyncExternalStore용: 날짜는 화면에 있는 동안 바뀔 일이 없어 구독할 것이 없음
 const subscribeNothing = () => () => {};
@@ -56,30 +57,39 @@ export default function DiaryWritePage() {
   const [content, setContent] = useState('');
   const [fromRecording, setFromRecording] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
-  const [sttFailed, setSttFailed] = useState(false);
+  const [sttError, setSttError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [submitFailed, setSubmitFailed] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [showEmptyError, setShowEmptyError] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
 
 
   const handleRecorded = useCallback(async (audio: Blob) => {
+    setSttError(null);
+    // STT-01 제한: 10MB (3분은 녹음 훅이 자동으로 멈춤)
+    if (audio.size > STT_MAX_BYTES) {
+      setSttError('녹음이 너무 길어요. 3분 이내로 나눠서 녹음해 주세요.');
+      return;
+    }
     setTranscribing(true);
-    setSttFailed(false);
     try {
       const { text } = await transcribeAudio(audio);
       // 이미 쓴 내용이 있으면 이어 붙임
       setContent((prev) => (prev.trim() ? `${prev.trim()}\n${text}` : text).slice(0, MAX_LENGTH));
       setFromRecording(true);
       setShowEmptyError(false);
-    } catch {
-      setSttFailed(true);
+    } catch (e) {
+      // 너무 긴 녹음은 서버 문구, 인터넷 문제는 연결 안내, 그 밖에는 기획 확정안 문구
+      const keepServerMessage =
+        e instanceof ApiError &&
+        (e.code === 'STT_FILE_TOO_LARGE' || e.code === CLIENT_ERROR.NETWORK || e.code === CLIENT_ERROR.TIMEOUT);
+      setSttError(keepServerMessage ? getErrorMessage(e) : STT_FAILED_MESSAGE);
     } finally {
       setTranscribing(false);
     }
   }, []);
 
-  const recorder = useRecorder({ onComplete: handleRecorded });
+  const recorder = useRecorder({ maxSeconds: STT_MAX_SECONDS, onComplete: handleRecorded });
   const isRecording = recorder.status === 'recording';
   const busy = recorder.status === 'requesting' || transcribing || submitting;
 
@@ -114,17 +124,20 @@ export default function DiaryWritePage() {
     if (error === 'permission-denied') setSheetOpen(true);
   };
 
+  // DIARY-01로 저장만 하고, AI 분석(DIARY-02)은 2.2 화면에서 요청 (분석 대기 화면이 2.2에 있음)
   const handleAnalyze = async () => {
     setSubmitting(true);
-    setSubmitFailed(false);
+    setSubmitError(null);
     try {
-      const { diaryId } = await requestDiaryAnalysis({
+      const { diaryId } = await createDiary({
+        diaryDate: toDateKey(new Date()),
         content: content.trim(),
-        audio: recorder.audio,
+        // 녹음으로 변환한 텍스트를 썼으면 VOICE (녹음 파일 자체는 보내지 않음)
+        inputType: fromRecording ? 'VOICE' : 'TEXT',
       });
       router.push(`/diary/${diaryId}/result`);
-    } catch {
-      setSubmitFailed(true);
+    } catch (e) {
+      setSubmitError(getErrorMessage(e));
       setSubmitting(false);
     }
   };
@@ -140,13 +153,15 @@ export default function DiaryWritePage() {
   let statusText = '눌러서 녹음을 시작하세요';
   if (micUnavailable) statusText = '녹음을 사용할 수 없어요';
   else if (recorder.status === 'requesting') statusText = '마이크 연결 중…';
-  else if (isRecording) statusText = `녹음 중 · ${formatTime(recorder.seconds)}`;
-  else if (transcribing) statusText = '텍스트로 바꾸는 중…';
+  else if (isRecording) statusText = `녹음 중 · ${formatTime(recorder.seconds)} / ${formatTime(STT_MAX_SECONDS)}`;
+  else if (transcribing) statusText = '말씀하신 내용을 글로 바꾸고 있어요.';
   else if (recorder.status === 'stopped') statusText = `녹음 완료 · ${formatTime(recorder.seconds)}`;
 
+  const reachedLimit = recorder.status === 'stopped' && recorder.seconds >= STT_MAX_SECONDS;
   const errorText =
     (recorder.error && RECORDER_ERROR_MESSAGE[recorder.error]) ||
-    (sttFailed && '텍스트로 바꾸지 못했어요. 다시 녹음하거나 직접 입력해 주세요.') ||
+    sttError ||
+    (reachedLimit && '3분이 지나 녹음을 멈췄어요. 이어서 녹음하면 아래에 덧붙여져요.') ||
     null;
 
   const inputBorder = showEmptyError
@@ -171,7 +186,7 @@ export default function DiaryWritePage() {
   return (
     // 위쪽 70px + Header 안쪽 24px = Figma 제목 위치 94px (하단 탭 첫 화면이라 뒤로가기 없음)
     <main className="mx-auto flex min-h-dvh w-full max-w-[390px] flex-col bg-bg-base pt-[70px] pb-[104px]">
-      <Header title="오늘의 돌봄 기록" subtitle="음성 또는 텍스트로 자유롭게 기록해 보세요" />
+      <Header title="오늘의 돌봄 기록" subtitle="음성 또는 텍스트로 자유롭게 기록해 보세요." />
 
       <div className="flex flex-1 flex-col px-6">
       {/* 날짜 */}
@@ -216,10 +231,13 @@ export default function DiaryWritePage() {
         >
           {statusText}
         </p>
-        {errorText && (
+        {errorText ? (
           <p className="mt-1 text-center text-caption text-pink-strong" role="alert">
             {errorText}
           </p>
+        ) : (
+          !micUnavailable &&
+          !transcribing && <p className="mt-1 text-center text-caption text-text-tertiary">최대 3분까지 녹음할 수 있어요.</p>
         )}
         {process.env.NODE_ENV === 'development' && audioUrl && (
           <div className="mt-2 w-full">
@@ -255,7 +273,7 @@ export default function DiaryWritePage() {
             }}
             maxLength={MAX_LENGTH}
             rows={4}
-            placeholder={`오늘 ${CHILD_NAME}이의 하루를 기록해 주세요.`}
+            placeholder="오늘 있었던 일을 기록해 주세요."
             aria-invalid={showEmptyError}
             aria-describedby={showEmptyError ? 'diary-empty-error' : undefined}
             className="w-full resize-none bg-transparent text-body leading-[1.55] text-text-primary placeholder:text-text-tertiary focus:outline-none"
@@ -272,16 +290,16 @@ export default function DiaryWritePage() {
             className="flex items-center gap-1.5 text-caption leading-[1.45] font-medium text-pink-strong"
           >
             <InfoIcon size={16} />
-            기록을 먼저 작성해 주세요
+            기록을 먼저 작성해 주세요.
           </p>
         )}
       </section>
 
       {/* 분석 버튼: 남는 공간 아래쪽에 붙임 */}
       <div className="mt-auto pt-6">
-        {submitFailed && (
+        {submitError && (
           <p className="mb-2 text-center text-caption text-pink-strong" role="alert">
-            분석 요청에 실패했어요. 잠시 후 다시 시도해 주세요.
+            {submitError}
           </p>
         )}
         {analyzeDisabled ? (

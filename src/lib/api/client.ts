@@ -40,7 +40,13 @@ export const CLIENT_ERROR = {
   BAD_RESPONSE: 'CLIENT_BAD_RESPONSE',
 } as const;
 
-const FALLBACK_MESSAGE = '잠시 후 다시 시도해 주세요.';
+// 기획 문구 확정안 v1.4 '1-2 공통 상태·오류 문구'. 서버가 메시지를 보내면 서버 메시지를 우선 사용
+const FALLBACK_MESSAGE = '일시적인 문제가 발생했어요. 잠시 후 다시 시도해 주세요.';
+const STATUS_MESSAGE: Record<number, string> = {
+  401: '로그인 상태가 만료됐어요. 다시 로그인해 주세요.',
+  403: '이 기능을 이용할 권한이 없어요.',
+};
+export const SESSION_EXPIRED_MESSAGE = STATUS_MESSAGE[401];
 
 export class ApiError extends Error {
   constructor(
@@ -50,7 +56,7 @@ export class ApiError extends Error {
     public code: string,
     message?: string,
   ) {
-    super(message || FALLBACK_MESSAGE);
+    super(message || STATUS_MESSAGE[status] || FALLBACK_MESSAGE);
     this.name = 'ApiError';
   }
 }
@@ -95,7 +101,8 @@ function goToLogin() {
   if (typeof window === 'undefined') return;
   const { pathname, search } = window.location;
   if (pathname.startsWith(LOGIN_PATH)) return; // 로그인 화면에서는 다시 이동하지 않음
-  window.location.href = `${LOGIN_PATH}?next=${encodeURIComponent(pathname + search)}`;
+  // expired=1 → 로그인 화면에서 "로그인 상태가 만료됐어요" 안내
+  window.location.href = `${LOGIN_PATH}?expired=1&next=${encodeURIComponent(pathname + search)}`;
 }
 
 function isEnvelope(value: unknown): value is ApiEnvelope<unknown> {
@@ -138,7 +145,7 @@ async function request<T>(method: string, path: string, options: RequestOptions 
   } catch (e) {
     if (timedOut) throw new ApiError(0, CLIENT_ERROR.TIMEOUT, '응답이 늦어지고 있어요. 잠시 후 다시 시도해 주세요.');
     if (signal?.aborted) throw e; // 화면이 직접 취소한 경우는 그대로
-    throw new ApiError(0, CLIENT_ERROR.NETWORK, '인터넷 연결을 확인해 주세요.');
+    throw new ApiError(0, CLIENT_ERROR.NETWORK, '인터넷 연결을 확인하고 다시 시도해 주세요.');
   } finally {
     clearTimeout(timer);
     signal?.removeEventListener('abort', onOuterAbort);

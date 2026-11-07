@@ -53,6 +53,22 @@ function write(key: string, value: string | null) {
   } catch {
     /* 저장 실패 시에는 이번 방문 동안 로그인이 유지되지 않을 수 있음 */
   }
+  window.dispatchEvent(new Event(SESSION_EVENT));
+}
+
+/* ───────────── 로그인 상태 변화 알림 (AuthGuard 등에서 사용) ───────────── */
+
+const SESSION_EVENT = 'yongyong:session';
+
+/** 로그인·로그아웃(다른 탭 포함) 때 callback 호출. 해제 함수를 돌려줌 */
+export function subscribeSession(callback: () => void) {
+  if (typeof window === 'undefined') return () => {};
+  window.addEventListener(SESSION_EVENT, callback);
+  window.addEventListener('storage', callback);
+  return () => {
+    window.removeEventListener(SESSION_EVENT, callback);
+    window.removeEventListener('storage', callback);
+  };
 }
 
 /* ───────────── 토큰 ───────────── */

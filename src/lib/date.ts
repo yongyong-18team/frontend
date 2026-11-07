@@ -61,6 +61,19 @@ export function isThisWeek(date: Date, today: Date) {
   return date >= start && date < end;
 }
 
+/** 이번 주(월~일) 범위 YYYY-MM-DD — DIARY-03 from/to */
+export function thisWeekRange(today: Date) {
+  const start = startOfWeek(today);
+  return { from: toDateKey(start), to: toDateKey(addDays(start, 6)) };
+}
+
+/** 지난달(1일~말일) 범위 YYYY-MM-DD — DIARY-03 from/to */
+export function lastMonthRange(today: Date) {
+  const first = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+  const last = new Date(today.getFullYear(), today.getMonth(), 0);
+  return { from: toDateKey(first), to: toDateKey(last) };
+}
+
 /** 지난달(달력 기준)에 속하는지 */
 export function isLastMonth(date: Date, today: Date) {
   const last = new Date(today.getFullYear(), today.getMonth() - 1, 1);

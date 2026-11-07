@@ -66,7 +66,7 @@ export default function MicPermissionSheet({ open, onClose, onTypeInstead }: Pro
             </ol>
           ) : (
             <p className="text-body leading-[1.5] text-text-secondary">
-              음성으로 기록하려면 휴대폰 설정에서 마이크 접근을 허용해 주세요. 텍스트로 바로 입력할 수도
+              음성으로 기록하려면 브라우저 설정에서 마이크 접근을 허용해 주세요. 텍스트로 바로 입력할 수도
               있어요.
             </p>
           )}

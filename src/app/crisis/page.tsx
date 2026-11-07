@@ -43,10 +43,11 @@ const EMERGENCY_LINES = [
   { number: '109', chip: '24시간', tone: 'sky', desc: '자살예방상담전화 · 전문 위기 상담' },
 ] as const;
 
-// TODO: B에게 받은 실제 resourceId로 교체 (5.3 상세 /support/[resourceId])
+// 5.3 상세 /support/[resourceId] — ID는 API 명세 SUP-01·SUP-02 기준
+// (부모상담 지원 1101 = SUP-02 followUp, 가족휴식지원 1102)
 const SUPPORT_RESOURCES = [
   {
-    id: 'TODO-family-rest',
+    id: 1102,
     title: '가족휴식지원',
     desc: '보호자 휴식 지원',
     icon: 'coffee',
@@ -54,7 +55,7 @@ const SUPPORT_RESOURCES = [
     iconColor: 'text-peach-strong',
   },
   {
-    id: 'TODO-parent-counsel',
+    id: 1101,
     title: '부모상담 지원',
     desc: '보호자 심리상담 연계',
     icon: 'chat',
