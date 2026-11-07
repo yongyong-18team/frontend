@@ -62,6 +62,24 @@ export default function DiaryWritePage() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [showEmptyError, setShowEmptyError] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const savedRef = useRef(false);
+
+  // Next.js 16은 다른 화면으로 가도 이 화면 상태를 보관했다가 뒤로가기 때 그대로 보여줌.
+  // 저장하고 2.2로 넘어간 뒤 돌아오면 "분석 요청 중…"에 멈춰 있지 않도록, 화면이 가려질 때 처음 상태로 되돌림
+  useEffect(() => {
+    return () => {
+      setSubmitting(false);
+      if (savedRef.current) {
+        // 이미 저장한 기록 → 같은 내용을 또 저장하지 않게 입력도 비움
+        savedRef.current = false;
+        setContent('');
+        setFromRecording(false);
+        setSubmitError(null);
+        setShowEmptyError(false);
+        setSttError(null);
+      }
+    };
+  }, []);
 
 
   const handleRecorded = useCallback(async (audio: Blob) => {
@@ -135,6 +153,7 @@ export default function DiaryWritePage() {
         // 녹음으로 변환한 텍스트를 썼으면 VOICE (녹음 파일 자체는 보내지 않음)
         inputType: fromRecording ? 'VOICE' : 'TEXT',
       });
+      savedRef.current = true;
       router.push(`/diary/${diaryId}/result`);
     } catch (e) {
       setSubmitError(getErrorMessage(e));

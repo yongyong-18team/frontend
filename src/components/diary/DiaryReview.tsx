@@ -82,7 +82,13 @@ export default function DiaryReview({ diaryId }: { diaryId: number }) {
 
   // 데이터가 준비된 뒤에만 검토 상태를 만들도록 분리
   return (
-    <ReviewForm diaryId={diaryId} items={state.detail.items} onDone={() => router.push(AFTER_SUBMIT_PATH)} />
+    // key: 다시 불러온 내용이 바뀌면(반영 후 돌아온 경우 등) 검토 상태를 새로 시작
+    <ReviewForm
+      key={state.detail.items.map((i) => `${i.itemNo}:${i.status}:${i.content}`).join('|')}
+      diaryId={diaryId}
+      items={state.detail.items}
+      onDone={() => router.push(AFTER_SUBMIT_PATH)}
+    />
   );
 }
 
@@ -98,6 +104,15 @@ function ReviewForm({ diaryId, items, onDone }: { diaryId: number; items: DiaryI
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [leaveOpen, setLeaveOpen] = useState(false);
   const router = useRouter();
+
+  // 반영 후 목록으로 갔다가 뒤로가기로 돌아오면 "반영하는 중…"에 멈춰 있지 않게 (Next.js 16이 화면 상태를 보관함)
+  useEffect(() => {
+    return () => {
+      setSubmitting(false);
+      setConfirmOpen(false);
+      setLeaveOpen(false);
+    };
+  }, []);
 
   const update = (itemNo: number, patch: Partial<ItemState>) =>
     setReview((prev) => ({ ...prev, [itemNo]: { ...prev[itemNo], ...patch } }));
