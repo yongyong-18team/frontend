@@ -7,7 +7,7 @@ import { GuideIcon, HomeIcon, RecordIcon, SupportIcon, UserIcon } from "@/compon
 /** 탭별로 "이 주소들에 있으면 이 탭을 강조" (Figma GNB 순서) */
 const TABS = [
   { href: "/diary", label: "돌봄 기록", Icon: RecordIcon, match: ["/diary", "/report"] }, // 2.5 리포트 포함
-  { href: "/manual", label: "돌봄 설명서", Icon: GuideIcon, match: ["/manual", "/share"] }, // 4.1~4.3 공유 포함
+  { href: "/guide", label: "돌봄 설명서", Icon: GuideIcon, match: ["/guide", "/share"] }, // 4.1~4.3 공유 포함
   { href: "/home", label: "홈", Icon: HomeIcon, match: ["/home"] },
   { href: "/support", label: "돌봄 지원", Icon: SupportIcon, match: ["/support", "/crisis"] }, // 5.5 위기 안내 포함
   { href: "/settings", label: "마이페이지", Icon: UserIcon, match: ["/settings"] },

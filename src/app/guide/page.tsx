@@ -135,7 +135,7 @@ export default function GuidePage() {
         {/* 하단 버튼 */}
         <section className="flex gap-2">
           {editable && (
-            <Button variant="outline" onClick={() => router.push("/manual/edit")}>
+            <Button variant="outline" onClick={() => router.push("/guide/edit")}>
               편집하기
             </Button>
           )}
@@ -186,7 +186,7 @@ export default function GuidePage() {
             </p>
 
             {editable && (
-              <Button variant="soft" onClick={() => router.push("/manual/edit")}>
+              <Button variant="soft" onClick={() => router.push("/guide/edit")}>
                 이 항목 편집하기
               </Button>
             )}

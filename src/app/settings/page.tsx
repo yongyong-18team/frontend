@@ -12,6 +12,7 @@ import {
   mockSentInvitations,
   type SentInvitation,
 } from "@/mocks/account";
+import { clearSession } from "@/lib/auth/session";
 
 /** 공동 관리자 권한은 고정 (표시용) */
 const CO_PERMISSIONS = "조회·공유·지원";
@@ -47,17 +48,18 @@ export default function SettingsPage() {
     setCancelTarget(null);
   };
 
-  const handleLogout = () => {
-    // TODO(프론트 A): 토큰 삭제 후 0.1로
+    const handleLogout = () => {
+    clearSession(); // 토큰·대상자 ID 삭제 (프론트 A session.ts)
     setAccountOpen(false);
-    router.push("/login");
+    router.replace("/login");
   };
 
-  const handleWithdraw = () => {
-    // TODO(D4): USER-03 탈퇴 → 토큰 삭제 후 0.1로
+    const handleWithdraw = () => {
+    // TODO(D4): USER-03 탈퇴 API 호출 후 성공하면 아래 실행
     console.log("USER-03 탈퇴");
+    clearSession();
     setWithdrawOpen(false);
-    router.push("/login");
+    router.replace("/login");
   };
 
   const empty = members.coManagers.length === 0 && pending.length === 0;

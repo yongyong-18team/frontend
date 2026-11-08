@@ -104,7 +104,7 @@ export default function ShareDonePage() {
           <Button variant="outline" onClick={() => tryLeave("/share/history")}>
             공유 내역 보기
           </Button>
-          <Button onClick={() => tryLeave("/manual")}>설명서로 돌아가기</Button>
+          <Button onClick={() => tryLeave("/guide")}>설명서로 돌아가기</Button>
         </div>
       </div>
 

@@ -130,7 +130,7 @@ export default function GuideEditPage() {
     console.log("GUIDE-03 수정", edited);
     console.log("GUIDE-04 삭제", deleted);
     setSaving(false);
-    router.push("/manual");
+    router.push("/guide");
   };
 
   // 공동 관리자는 편집 불가 (서버도 403으로 막음)
