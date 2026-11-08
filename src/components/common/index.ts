@@ -11,3 +11,4 @@ export { default as Chip } from "./Chip";
 export { default as ListRow } from "./ListRow";
 export { default as Stepper } from "./Stepper";
 export { Modal, BottomSheet, Dialog } from "./Overlay";
+export { default as DatePicker } from "./DatePicker";

@@ -27,7 +27,7 @@ export default function Button({
       disabled={disabled}
       className={`flex h-14 min-w-0 items-center justify-center rounded-button px-5 text-subhead font-bold transition-opacity active:opacity-80 ${
         fullWidth ? "w-full" : ""
-      } ${disabled ? "bg-line-strong text-text-tertiary" : VARIANT[variant]} ${className}`}
+      } ${disabled ? "bg-line-base text-text-tertiary" : VARIANT[variant]} ${className}`}
       {...rest}
     >
       {children}

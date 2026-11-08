@@ -32,6 +32,8 @@ type ModalProps = {
   cancelLabel?: string;
   tone?: "default" | "danger";
   loading?: boolean;
+  /** 넣으면 위에 52 원 아이콘 + 가운데 정렬 (Figma 6.3 해제 확인) */
+  icon?: ReactNode;
   onConfirm: () => void;
   onClose: () => void;
 };
@@ -44,6 +46,7 @@ export function Modal({
   cancelLabel = "취소",
   tone = "default",
   loading = false,
+  icon,
   onConfirm,
   onClose,
 }: ModalProps) {
@@ -62,10 +65,27 @@ export function Modal({
         aria-labelledby={titleId}
         className="relative w-full max-w-[382px] rounded-[24px] bg-bg-surface px-[22px] pb-[22px] pt-5 shadow-pop"
       >
-        <h2 id={titleId} className="text-[18px] font-bold leading-[1.35] text-text-primary">
+        {icon && (
+          <span
+            className={`mx-auto mb-3.5 flex h-[52px] w-[52px] items-center justify-center rounded-full ${
+              tone === "danger" ? "bg-pink-soft text-pink-strong" : "bg-primary-soft text-primary-strong"
+            }`}
+            aria-hidden
+          >
+            {icon}
+          </span>
+        )}
+        <h2
+          id={titleId}
+          className={`font-bold leading-[1.35] text-text-primary ${icon ? "text-center text-[19px]" : "text-[18px]"}`}
+        >
           {title}
         </h2>
-        {message && <div className="mt-2 text-body text-text-secondary">{message}</div>}
+        {message && (
+          <div className={`mt-2 text-text-secondary ${icon ? "text-center text-[14px] leading-[1.55]" : "text-body"}`}>
+            {message}
+          </div>
+        )}
 
         <div className="mt-6 flex gap-2">
           {cancelLabel && (
