@@ -22,16 +22,25 @@ function StateText({ title, description }: { title: ReactNode; description?: Rea
 }
 
 /* ---------- 로딩 ---------- */
-type LoadingStateProps = { message?: string };
+type LoadingStateProps = {
+  /** 화면에 보여줄 안내 문구 (없으면 화면 낭독기에만 "불러오는 중이에요") */
+  message?: string;
+  /** message와 같음 (프론트 A 화면에서 쓰는 이름) */
+  label?: string;
+  /** 회색 카드 개수 (기본 2) */
+  count?: number;
+};
 
-export function LoadingState({ message }: LoadingStateProps) {
+export function LoadingState({ message, label, count = 2 }: LoadingStateProps) {
+  const text = message ?? label;
   return (
     <div role="status" aria-live="polite" className="flex flex-col gap-3 px-6 py-6">
       <div className="h-7 w-2/3 animate-pulse rounded-input bg-bg-subtle" />
-      <div className="h-24 w-full animate-pulse rounded-card bg-bg-subtle" />
-      <div className="h-24 w-full animate-pulse rounded-card bg-bg-subtle" />
-      <span className={message ? "pt-2 text-center text-body text-text-secondary" : "sr-only"}>
-        {message ?? "불러오는 중이에요"}
+      {Array.from({ length: Math.max(0, count) }, (_, i) => (
+        <div key={i} className="h-24 w-full animate-pulse rounded-card bg-bg-subtle" />
+      ))}
+      <span className={text ? "pt-2 text-center text-body text-text-secondary" : "sr-only"}>
+        {text ?? "불러오는 중이에요"}
       </span>
     </div>
   );
