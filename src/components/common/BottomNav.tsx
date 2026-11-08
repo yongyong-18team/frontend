@@ -13,8 +13,8 @@ const TABS = [
   { href: "/settings", label: "마이페이지", Icon: UserIcon, match: ["/settings"] },
 ];
 
-/** 하단 탭을 숨길 주소 (온보딩 경로는 세훈님이 추가) */
-const HIDDEN_PREFIXES = ["/s/", "/login"];
+/** 하단 탭을 숨길 주소 (4.4 수신자 페이지, 로그인, 온보딩) */
+const HIDDEN_PREFIXES = ["/s/", "/login", "/onboarding"];
 
 const isUnder = (path: string, base: string) => path === base || path.startsWith(`${base}/`);
 

@@ -1,11 +1,12 @@
 // src/components/report/WeeklyReport.tsx
-// 2.5 주간 돌봄 리포트 (Figma 35:3004)
-//   - 요약 카드: 이 주에 기록한 날 수 + 한 줄
-//   - 일별 도전 행동 막대 그래프 (월~일, 가장 많은 날은 진한 색)
-//   - 주요 변화 목록
+// 2.5 주간 돌봄 리포트 (Figma 35:3004, REPORT-03 — 명세상 P1)
+//   - 기간: endDate 포함 최근 7일
+//   - 요약 카드: 기록 수(recordCount) + 요약 문장(summaryLines, 기록 3건 미만이면 없음)
+//   - 일별 도전 행동 막대 그래프 (dailyTrend.behaviorCount, 가장 많은 날 진한 색)
+//   - 관찰된 행동 패턴 (repeatedBehaviors + timePattern)
+//   - 새로 반영된 정보 (keyChanges) → 누르면 그 일기 상세(2.3)
+//   - 기록 0건 → "생성 불가" 안내
 //   - "리포트 공유하기" → B의 공유 화면 (/share?documentType=WEEKLY&periodStart=…)
-//
-// 개발 중 "기록 없는 주"는 /report?periodStart=2000-01-03 으로 확인
 
 'use client';
 
@@ -14,16 +15,15 @@ import { useRouter } from 'next/navigation';
 
 import Button from '@/components/common/Button';
 import { EmptyState, ErrorState, LoadingState } from '@/components/common/StateView';
+import { SECTION_LABEL, timeSlotLabel } from '@/components/diary/category';
 import DiaryPageShell from '@/components/diary/DiaryPageShell';
 import { ChevronRightIcon } from '@/components/icons/Icons';
 import { useWeeklyReport } from '@/hooks/useWeeklyReport';
-import type { DailyCount, ReportInsight } from '@/lib/api/report';
-import { formatMonthDay, fromDateKey, isThisWeek, weekdayLabel } from '@/lib/date';
+import { ApiError, CLIENT_ERROR, getErrorMessage } from '@/lib/api/client';
+import type { DailyTrend, KeyChange, WeeklyReport as WeeklyReportData } from '@/lib/api/report';
+import { formatMonthDay, fromDateKey, weekdayLabel } from '@/lib/date';
 
 const TITLE = '주간 돌봄 리포트';
-
-// TODO: 주요 변화 줄을 눌렀을 때 갈 화면 확정. 지금은 반영된 내용이 모이는 3.1 돌봄 설명서(B)
-const INSIGHT_PATH = '/manual';
 
 /** 막대 최대 높이 78px, 0건은 6px 회색 막대 (Figma 기준) */
 const BAR_MAX = 78;
@@ -34,15 +34,13 @@ export function barHeight(count: number, max: number) {
   return Math.max(BAR_EMPTY, Math.round((count / max) * BAR_MAX));
 }
 
-export default function WeeklyReport({ periodStart }: { periodStart?: string }) {
+export default function WeeklyReport({ endDate }: { endDate?: string }) {
   const router = useRouter();
-  const { state, retry } = useWeeklyReport(periodStart);
+  const { state, retry } = useWeeklyReport(endDate);
 
   const periodLabel =
     state.phase === 'done'
-      ? `${formatMonthDay(fromDateKey(state.report.periodStart))} ~ ${formatMonthDay(
-          fromDateKey(state.report.periodEnd),
-        )}`
+      ? `${formatMonthDay(fromDateKey(state.report.periodStart))} ~ ${formatMonthDay(fromDateKey(state.report.periodEnd))}`
       : ' '; // 불러오는 동안 줄 높이 유지
 
   if (state.phase === 'loading') {
@@ -59,7 +57,7 @@ export default function WeeklyReport({ periodStart }: { periodStart?: string }) 
     return (
       <DiaryPageShell title={TITLE} desc={periodLabel}>
         <div className="mt-[34px]">
-          <ErrorState message="리포트를 불러오지 못했어요" onRetry={retry} />
+          <ErrorState message={reportErrorMessage(state.error)} onRetry={retry} />
         </div>
       </DiaryPageShell>
     );
@@ -67,14 +65,14 @@ export default function WeeklyReport({ periodStart }: { periodStart?: string }) 
 
   const { report } = state;
 
-  // 기록 없는 주 (Figma 없음)
-  if (report.recordedDays === 0) {
+  // 기록 0건 → 생성 불가 (Figma 없음)
+  if (report.recordCount === 0) {
     return (
       <DiaryPageShell title={TITLE} desc={periodLabel}>
         <div className="mt-[34px]">
           <EmptyState
-            title="이 주에는 기록이 없어요"
-            description={'기록이 쌓이면 반복된 행동과\n대처 경향을 정리해 드려요.'}
+            title="아직 분석할 기록이 없어요."
+            description="기록이 더 쌓이면 주간 요약을 확인할 수 있어요."
             actionLabel="기록하러 가기"
             onAction={() => router.push('/diary/new')}
           />
@@ -83,7 +81,6 @@ export default function WeeklyReport({ periodStart }: { periodStart?: string }) 
     );
   }
 
-  const weekWord = isThisWeek(fromDateKey(report.periodStart), new Date()) ? '이번 주' : '이 주에';
   const shareHref = `/share?documentType=WEEKLY&periodStart=${report.periodStart}`;
 
   return (
@@ -92,32 +89,18 @@ export default function WeeklyReport({ periodStart }: { periodStart?: string }) 
         {/* 기록 요약 */}
         <section className="flex flex-col gap-1 rounded-card bg-primary-soft px-[18px] py-4">
           <p className="text-heading font-bold text-text-primary">
-            {weekWord} {report.recordedDays}일 기록했어요
+            이번 주 {report.dailyTrend.filter((d) => d.recordCount > 0).length}일 기록했어요
           </p>
-          {report.highlight && (
-            <p className="text-[14px] leading-[1.45] text-text-secondary">{report.highlight}</p>
-          )}
+          <SummaryLines report={report} />
         </section>
 
         {/* 일별 도전 행동 기록 */}
         <section className="flex flex-col gap-3 rounded-card bg-bg-surface px-[18px] py-4">
           <h2 className="text-body leading-[1.45] font-bold text-text-primary">일별 도전 행동 기록</h2>
-          <DailyBars daily={report.daily} />
+          <DailyBars trend={report.dailyTrend} />
         </section>
 
-        {/* 주요 변화 */}
-        {report.insights.length > 0 && (
-          <ul className="flex flex-col rounded-card bg-bg-surface px-4 py-0.5">
-            {report.insights.map((insight, i) => (
-              <li
-                key={insight.id}
-                className={i < report.insights.length - 1 ? 'border-b border-line-base' : ''}
-              >
-                <InsightRow insight={insight} />
-              </li>
-            ))}
-          </ul>
-        )}
+        <PatternAndChanges report={report} />
       </div>
 
       <div className="mt-auto pt-6">
@@ -127,29 +110,39 @@ export default function WeeklyReport({ periodStart }: { periodStart?: string }) 
   );
 }
 
-function DailyBars({ daily }: { daily: DailyCount[] }) {
-  const max = Math.max(0, ...daily.map((d) => d.count));
-  const summary = daily
-    .map((d) => `${weekdayLabel(fromDateKey(d.date))} ${d.count}건`)
-    .join(', ');
+function SummaryLines({ report }: { report: WeeklyReportData }) {
+  // 승인 기록 3건 미만이면 summaryLines가 비어 있음 → 기획 확정안 "데이터 부족" 문구
+  const lines = report.summaryLines.length > 0 ? report.summaryLines : ['기록이 더 쌓이면 주간 요약을 확인할 수 있어요.'];
+  return (
+    <>
+      {lines.map((line) => (
+        <p key={line} className="text-[14px] leading-[1.45] text-text-secondary">
+          {line}
+        </p>
+      ))}
+    </>
+  );
+}
+
+function DailyBars({ trend }: { trend: DailyTrend[] }) {
+  const max = Math.max(0, ...trend.map((d) => d.behaviorCount));
+  const summary = trend.map((d) => `${weekdayLabel(fromDateKey(d.date))} ${d.behaviorCount}건`).join(', ');
 
   return (
     <div className="flex items-end justify-between" role="img" aria-label={`일별 도전 행동 수: ${summary}`}>
-      {daily.map((d) => {
-        const isTop = max > 0 && d.count === max;
-        const isZero = d.count === 0;
+      {trend.map((d) => {
+        const isTop = max > 0 && d.behaviorCount === max;
+        const isZero = d.behaviorCount === 0;
         return (
           <div key={d.date} className="flex flex-col items-center gap-1.5" aria-hidden>
-            <span
-              className={`text-micro leading-none font-bold ${isTop ? 'text-primary-strong' : 'text-text-tertiary'}`}
-            >
-              {d.count}
+            <span className={`text-micro leading-none font-bold ${isTop ? 'text-primary-strong' : 'text-text-tertiary'}`}>
+              {d.behaviorCount}
             </span>
             <span
               className={`w-6 rounded-t-[8px] rounded-b-[4px] ${
                 isZero ? 'bg-line-base' : isTop ? 'bg-primary-strong' : 'bg-primary-base'
               }`}
-              style={{ height: barHeight(d.count, max) }}
+              style={{ height: barHeight(d.behaviorCount, max) }}
             />
             <span className="text-micro leading-none font-medium text-text-secondary">
               {weekdayLabel(fromDateKey(d.date))}
@@ -161,15 +154,56 @@ function DailyBars({ daily }: { daily: DailyCount[] }) {
   );
 }
 
-/** TODO: B의 ListRow(Figma 34:1730)와 같은 모양이면 교체 */
-function InsightRow({ insight }: { insight: ReportInsight }) {
+/** Figma의 목록 카드: 관찰된 행동 패턴 + 새로 반영된 정보. TODO(B): ListRow로 교체 */
+function PatternAndChanges({ report }: { report: WeeklyReportData }) {
+  const topBehavior = report.repeatedBehaviors[0];
+  const topSlot = report.timePattern[0];
+  if (!topBehavior && report.keyChanges.length === 0) return null;
+
   return (
-    <Link href={INSIGHT_PATH} className="flex items-center gap-3 py-4 active:opacity-80">
+    <ul className="flex flex-col rounded-card bg-bg-surface px-4 py-0.5">
+      {topBehavior && (
+        <li className={report.keyChanges.length > 0 ? 'border-b border-line-base' : ''}>
+          <div className="flex flex-col gap-1 py-4 leading-[1.45]">
+            <span className="text-body-lg font-bold text-text-primary">관찰된 행동 패턴</span>
+            <span className="text-[14px] text-text-secondary">
+              {topBehavior.label} {topBehavior.count}회
+              {topSlot ? ` · 주로 ${timeSlotLabel(topSlot.timeSlot)}` : ''}
+            </span>
+          </div>
+        </li>
+      )}
+      {report.keyChanges.map((change, i) => (
+        <li
+          key={`${change.diaryId}-${change.content}`}
+          className={i < report.keyChanges.length - 1 ? 'border-b border-line-base' : ''}
+        >
+          <KeyChangeRow change={change} isFirst={i === 0} />
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function KeyChangeRow({ change, isFirst }: { change: KeyChange; isFirst: boolean }) {
+  return (
+    <Link href={`/diary/${change.diaryId}/review`} className="flex items-center gap-3 py-4 active:opacity-80">
       <span className="flex min-w-0 flex-1 flex-col gap-1 leading-[1.45]">
-        <span className="text-body-lg font-bold text-text-primary">{insight.title}</span>
-        <span className="text-[14px] text-text-secondary">{insight.summary}</span>
+        {isFirst && <span className="text-caption font-bold text-text-tertiary">새로 반영된 정보</span>}
+        <span className="text-body-lg font-bold text-text-primary">{change.content}</span>
+        <span className="text-[14px] text-text-secondary">
+          {SECTION_LABEL[change.section] ?? change.section} · {formatMonthDay(fromDateKey(change.diaryDate))}
+        </span>
       </span>
       <ChevronRightIcon size={20} className="shrink-0 text-text-tertiary" />
     </Link>
   );
+}
+
+/** 인터넷 끊김·시간 초과는 그 안내를, 그 밖에는 기획 확정안 문구 */
+function reportErrorMessage(error: unknown) {
+  if (error instanceof ApiError && (error.code === CLIENT_ERROR.NETWORK || error.code === CLIENT_ERROR.TIMEOUT)) {
+    return getErrorMessage(error);
+  }
+  return '주간 리포트를 불러오지 못했어요.';
 }

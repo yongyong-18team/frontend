@@ -3,32 +3,44 @@
 //   - 검토 대기: 흰 카드, [제외] [승인]             (Figma 35:2729)
 //   - 승인:      주황 테두리, [제외] [✓ 승인됨]       (Figma 35:2720)
 //   - 제외:      베이지 카드, 취소선, [제외 취소]      (Figma 35:2799)
-//   - 수정:      자세한 내용 팝업(ItemDetailDialog)을 엶 → 2.2 따옴표 줄과 같은 내용
+//   - 수정:      항목 문장을 고치는 팝업(ItemEditDialog)을 엶 → 반영할 때 "수정 후 승인"
 
 'use client';
 
 import Button from '@/components/common/Button';
 import Chip from '@/components/common/Chip';
-import { getCategory } from '@/components/diary/category';
+import { getItemChip } from '@/components/diary/category';
 import { CheckIcon } from '@/components/icons/Icons';
-import type { ExtractedItem } from '@/lib/api/diary';
-
-export type ReviewStatus = 'PENDING' | 'APPROVED' | 'EXCLUDED';
+import type { DiaryItem, ItemStatus } from '@/lib/api/diary';
 
 type Props = {
-  item: ExtractedItem;
-  status: ReviewStatus;
+  item: DiaryItem;
+  status: ItemStatus;
+  /** 화면에 보여줄 문장 (수정했으면 수정한 문장) */
+  content: string;
+  /** 서버 문장과 다르게 고쳤거나, 이전에 수정 후 승인된 항목 */
+  edited: boolean;
   disabled?: boolean;
-  onStatusChange: (status: ReviewStatus) => void;
-  /** "수정" — 자세한 내용 팝업 열기 */
+  /** false면 승인됨을 다시 눌러도 검토 대기로 안 돌아감 (이미 반영한 항목) */
+  canUnapprove?: boolean;
+  onStatusChange: (status: ItemStatus) => void;
   onEdit: () => void;
 };
 
 // 카드 안 버튼은 높이 46 (B의 Button 기본 56을 덮어씀)
 const CARD_BUTTON = 'h-[46px]! flex-1';
 
-export default function ReviewItemCard({ item, status, disabled = false, onStatusChange, onEdit }: Props) {
-  const category = getCategory(item.category);
+export default function ReviewItemCard({
+  item,
+  status,
+  content,
+  edited,
+  disabled = false,
+  canUnapprove = true,
+  onStatusChange,
+  onEdit,
+}: Props) {
+  const chip = getItemChip(item);
   const isApproved = status === 'APPROVED';
   const isExcluded = status === 'EXCLUDED';
 
@@ -40,19 +52,20 @@ export default function ReviewItemCard({ item, status, disabled = false, onStatu
 
   return (
     <li className={`flex flex-col gap-3 rounded-card border-[1.5px] px-4 py-[14px] ${cardStyle}`}>
-      {/* 분류 칩 + 제외됨 표시 + 수정 */}
+      {/* 분류 칩 + 제외됨·수정함 표시 + 수정 */}
       <div className="flex items-center gap-2">
-        <Chip tone={category.tone} className={isExcluded ? 'opacity-50' : ''}>
-          {category.label}
+        <Chip tone={chip.tone} className={isExcluded ? 'opacity-50' : ''}>
+          {chip.label}
         </Chip>
         {isExcluded && <Chip tone="pink">제외됨</Chip>}
+        {!isExcluded && edited && <Chip tone="neutral">수정함</Chip>}
         <span className="flex-1" />
         {!isExcluded && (
           <button
             type="button"
             onClick={onEdit}
             disabled={disabled}
-            aria-label={`${item.summary} 자세한 내용 수정`}
+            aria-label={`${content} 내용 수정`}
             className="text-[14px] leading-[1.45] font-medium text-text-secondary underline disabled:opacity-50"
           >
             수정
@@ -65,17 +78,17 @@ export default function ReviewItemCard({ item, status, disabled = false, onStatu
           isExcluded ? 'text-text-tertiary line-through' : 'text-text-primary'
         }`}
       >
-        {item.summary}
+        {content}
       </p>
 
-      {/* 버튼 */}
       <div className="flex gap-2">
         {isExcluded ? (
           <Button
             variant="outline"
             fullWidth={false}
             className={CARD_BUTTON}
-            onClick={() => onStatusChange('PENDING')}
+            // 처음부터 검토 대기였던 항목은 검토 대기로, 이미 반영한 항목은 승인으로 되돌림
+            onClick={() => onStatusChange(canUnapprove ? 'PENDING' : 'APPROVED')}
             disabled={disabled}
           >
             제외 취소
@@ -96,8 +109,11 @@ export default function ReviewItemCard({ item, status, disabled = false, onStatu
               fullWidth={false}
               className={`${CARD_BUTTON} gap-1`}
               aria-pressed={isApproved}
-              // 승인됨을 다시 누르면 검토 대기로 되돌림
-              onClick={() => onStatusChange(isApproved ? 'PENDING' : 'APPROVED')}
+              // 승인됨을 다시 누르면 검토 대기로 되돌림 (이미 반영한 항목은 되돌릴 수 없어서 그대로)
+              onClick={() => {
+                if (!isApproved) onStatusChange('APPROVED');
+                else if (canUnapprove) onStatusChange('PENDING');
+              }}
               disabled={disabled}
             >
               {isApproved ? (
