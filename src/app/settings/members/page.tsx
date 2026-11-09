@@ -2,16 +2,16 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Header, Button, Chip, EmptyState, Modal } from "@/components/common";
+import { Header, Button, Chip, EmptyState, ErrorState, LoadingState, Modal } from "@/components/common";
 import { InfoIcon, UserIcon, UserMinusIcon } from "@/components/icons/Icons";
+import { useMembersPage } from "@/hooks/useAccount";
+import { getErrorMessage } from "@/lib/api/client";
 import {
-  mockMe,
-  mockMembers,
-  mockRemoveMember,
-  mockSentInvitations,
-  type Member,
+  cancelInvitation,
+  removeMember,
+  type CoManager,
   type SentInvitation,
-} from "@/mocks/account";
+} from "@/lib/api/member";
 
 /** 공동 관리자 권한은 고정 (표시용) */
 const CO_PERMISSIONS = "조회·공유·지원";
@@ -19,47 +19,27 @@ const CO_PERMISSIONS = "조회·공유·지원";
 /** 작은 버튼 (Figma: 좌우 12·상하 7, 13 Bold) */
 const SMALL_BTN = "shrink-0 rounded-full border bg-bg-surface px-3 py-[7px] text-caption font-bold leading-[1.4] active:opacity-70";
 
-/** 6.3 공동 관리자 관리 (OWNER) */
+/** 6.3 공동 관리자 관리 (OWNER, MEMBER-02·03, INVITE-02·03) */
 export default function MembersPage() {
-  const router = useRouter();
-  // TODO(D4): USER-01 role, MEMBER-02, INVITE-02 API로 교체
-  const isOwner = mockMe.subjects[0]?.role === "OWNER";
+  const { state, retry } = useMembersPage();
 
-  const [members, setMembers] = useState<Member[]>(mockMembers.coManagers);
-  const [pending, setPending] = useState<SentInvitation[]>(() =>
-    mockSentInvitations.filter((i) => i.status === "PENDING"),
-  );
-  const [removeTarget, setRemoveTarget] = useState<Member | null>(null);
-  const [cancelTarget, setCancelTarget] = useState<SentInvitation | null>(null);
-  const [notice, setNotice] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
-  const [busy, setBusy] = useState(false);
-
-  const handleRemove = () => {
-    if (!removeTarget) return;
-    setBusy(true);
-    // TODO(D4): MEMBER-03 해제 → { revokedShareCount }
-    const res = mockRemoveMember(removeTarget.loginId);
-    setBusy(false);
-    if (!res.ok) {
-      setNotice({ tone: "error", text: res.error.message });
-    } else {
-      setMembers((prev) => prev.filter((m) => m.loginId !== removeTarget.loginId));
-      const n = res.data.revokedShareCount;
-      setNotice({ tone: "ok", text: n > 0 ? `해제했어요. 공유 링크 ${n}개도 함께 막혔어요.` : "해제했어요." });
-    }
-    setRemoveTarget(null);
-  };
-
-  const handleCancelInvite = () => {
-    if (!cancelTarget) return;
-    // TODO(D4): INVITE-03 대기 중 초대 취소
-    console.log("INVITE-03 취소", cancelTarget.invitationId);
-    setPending((prev) => prev.filter((i) => i.invitationId !== cancelTarget.invitationId));
-    setNotice({ tone: "ok", text: "초대를 취소했어요." });
-    setCancelTarget(null);
-  };
-
-  if (!isOwner) {
+  if (state.phase === "loading") {
+    return (
+      <main className="flex flex-col pb-[120px]">
+        <Header title="공동 관리자 관리" back />
+        <LoadingState count={2} label="공동 관리자를 불러오는 중이에요" />
+      </main>
+    );
+  }
+  if (state.phase === "error") {
+    return (
+      <main className="flex flex-col pb-[120px]">
+        <Header title="공동 관리자 관리" back />
+        <ErrorState message={getErrorMessage(state.error)} onRetry={retry} />
+      </main>
+    );
+  }
+  if (!state.data.owner || !state.data.members) {
     return (
       <main className="flex flex-col pb-[120px]">
         <Header title="공동 관리자 관리" back />
@@ -67,6 +47,55 @@ export default function MembersPage() {
       </main>
     );
   }
+  return <MembersView initialMembers={state.data.members.coManagers} initialPending={state.data.pending} />;
+}
+
+function MembersView({
+  initialMembers,
+  initialPending,
+}: {
+  initialMembers: CoManager[];
+  initialPending: SentInvitation[];
+}) {
+  const router = useRouter();
+  const [members, setMembers] = useState<CoManager[]>(initialMembers);
+  const [pending, setPending] = useState<SentInvitation[]>(initialPending);
+  const [removeTarget, setRemoveTarget] = useState<CoManager | null>(null);
+  const [cancelTarget, setCancelTarget] = useState<SentInvitation | null>(null);
+  const [notice, setNotice] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  /** MEMBER-03 해제 (userId로) → 함께 막힌 공유 링크 수 안내 */
+  const handleRemove = async () => {
+    if (!removeTarget) return;
+    setBusy(true);
+    try {
+      const { revokedShareCount: n } = await removeMember(removeTarget.userId);
+      setMembers((prev) => prev.filter((m) => m.userId !== removeTarget.userId));
+      setNotice({ tone: "ok", text: n > 0 ? `해제했어요. 공유 링크 ${n}개도 함께 막혔어요.` : "해제했어요." });
+    } catch (e) {
+      setNotice({ tone: "error", text: getErrorMessage(e) });
+    } finally {
+      setBusy(false);
+      setRemoveTarget(null);
+    }
+  };
+
+  /** INVITE-03 대기 중 초대 취소 */
+  const handleCancelInvite = async () => {
+    if (!cancelTarget) return;
+    setBusy(true);
+    try {
+      await cancelInvitation(cancelTarget.invitationId);
+      setPending((prev) => prev.filter((i) => i.invitationId !== cancelTarget.invitationId));
+      setNotice({ tone: "ok", text: "초대를 취소했어요." });
+    } catch (e) {
+      setNotice({ tone: "error", text: getErrorMessage(e) });
+    } finally {
+      setBusy(false);
+      setCancelTarget(null);
+    }
+  };
 
   const empty = members.length === 0 && pending.length === 0;
 
@@ -93,13 +122,15 @@ export default function MembersPage() {
             {empty && <p className="py-3.5 text-body text-text-tertiary">아직 공동 관리자가 없어요</p>}
 
             {members.map((m) => (
-              <div key={m.loginId} className="flex items-center gap-3 py-3.5">
+              <div key={m.userId} className="flex items-center gap-3 py-3.5">
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-mint-soft text-mint-strong">
                   <UserIcon size={20} />
                 </span>
                 <div className="flex min-w-0 flex-1 flex-col gap-[3px]">
                   <span className="flex items-center gap-1.5">
-                    <span className="truncate text-body font-bold leading-[1.45] text-text-primary">{m.loginId}</span>
+                    <span className="truncate text-body font-bold leading-[1.45] text-text-primary">
+                      {m.loginId ?? m.displayName}
+                    </span>
                     <Chip tone="mint">관리자</Chip>
                   </span>
                   <span className="text-caption text-text-secondary">
@@ -130,13 +161,15 @@ export default function MembersPage() {
                   </span>
                   <span className="text-caption text-text-secondary">초대 수락 대기 중</span>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setCancelTarget(inv)}
-                  className={`${SMALL_BTN} border-line-strong text-text-secondary`}
-                >
-                  초대 취소
-                </button>
+                {inv.status === "PENDING" && (
+                  <button
+                    type="button"
+                    onClick={() => setCancelTarget(inv)}
+                    className={`${SMALL_BTN} border-line-strong text-text-secondary`}
+                  >
+                    초대 취소
+                  </button>
+                )}
               </div>
             ))}
           </div>
@@ -156,7 +189,7 @@ export default function MembersPage() {
       <Modal
         open={!!removeTarget}
         icon={<UserMinusIcon size={26} />}
-        title={removeTarget ? `${removeTarget.loginId}님의 권한을 해제할까요?` : ""}
+        title={removeTarget ? `${removeTarget.loginId ?? removeTarget.displayName}님의 권한을 해제할까요?` : ""}
         message={
           <>
             해제하면 돌봄 정보를 더 이상 볼 수 없어요.
@@ -182,6 +215,7 @@ export default function MembersPage() {
         confirmLabel="초대 취소"
         cancelLabel="닫기"
         tone="danger"
+        loading={busy}
         onConfirm={handleCancelInvite}
         onClose={() => setCancelTarget(null)}
       />
