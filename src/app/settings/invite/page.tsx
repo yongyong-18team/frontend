@@ -2,9 +2,11 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Header, Button, Input, EmptyState } from "@/components/common";
+import { Header, Button, Input, EmptyState, LoadingState, ErrorState } from "@/components/common";
 import { CheckIcon, InfoIcon, LockIcon, UserIcon } from "@/components/icons/Icons";
-import { mockLookupUser, mockMe, mockSendInvite } from "@/mocks/account";
+import { useOwnerCheck } from "@/hooks/useAccount";
+import { ApiError, getErrorMessage } from "@/lib/api/client";
+import { lookupUser, sendInvite } from "@/lib/api/member";
 
 /** 공동 관리자 권한 (고정, 표시용 — 고르지 않고 요청에도 안 보냄) */
 const PERMISSIONS = [
@@ -13,56 +15,27 @@ const PERMISSIONS = [
   { title: "돌봄 지원", description: "돌봄 공백 등록·지원 탐색" },
 ];
 
-/** 6.2 공동 관리자 초대 (OWNER) */
+/** 6.2 공동 관리자 초대 (OWNER, MEMBER-01 → INVITE-01) */
 export default function InvitePage() {
-  const router = useRouter();
-  // TODO(D4): USER-01 role
-  const isOwner = mockMe.subjects[0]?.role === "OWNER";
+  const { state, retry } = useOwnerCheck();
 
-  const [loginId, setLoginId] = useState("");
-  const [found, setFound] = useState<{ loginId: string; displayName: string } | null>(null);
-  const [error, setError] = useState<{ code: string; message: string } | null>(null);
-  const [sending, setSending] = useState(false);
-
-  const handleChange = (v: string) => {
-    setLoginId(v);
-    setFound(null); // ID를 고치면 다시 확인
-    setError(null);
-  };
-
-  const handleLookup = () => {
-    const id = loginId.trim();
-    if (!id) {
-      setError({ code: "REQUIRED", message: "상대 계정 ID를 입력해 주세요." });
-      return;
-    }
-    // TODO(D4): MEMBER-01 GET /users/lookup?loginId= (분당 10회, 429면 error.message 표시)
-    const res = mockLookupUser(id);
-    if (res.ok) {
-      setFound(res.data);
-      setError(null);
-    } else {
-      setFound(null);
-      setError(res.error);
-    }
-  };
-
-  const handleInvite = () => {
-    if (!found) return;
-    setSending(true);
-    // TODO(D4): INVITE-01 POST { inviteeLoginId } (권한 값은 보내지 않음)
-    const res = mockSendInvite(found.loginId);
-    setSending(false);
-    if (!res.ok) {
-      setFound(null);
-      setError(res.error);
-      return;
-    }
-    console.log("INVITE-01 성공", res.data);
-    router.push("/settings");
-  };
-
-  if (!isOwner) {
+  if (state.phase === "loading") {
+    return (
+      <main className="flex flex-col pb-[120px]">
+        <Header title="공동 관리자 초대" back />
+        <LoadingState count={2} />
+      </main>
+    );
+  }
+  if (state.phase === "error") {
+    return (
+      <main className="flex flex-col pb-[120px]">
+        <Header title="공동 관리자 초대" back />
+        <ErrorState message={getErrorMessage(state.error)} onRetry={retry} />
+      </main>
+    );
+  }
+  if (!state.data) {
     return (
       <main className="flex flex-col pb-[120px]">
         <Header title="공동 관리자 초대" back />
@@ -70,8 +43,60 @@ export default function InvitePage() {
       </main>
     );
   }
+  return <InviteForm />;
+}
 
-  const notFound = error?.code === "USER_NOT_FOUND" || error?.code === "INVITE_USER_NOT_FOUND";
+function InviteForm() {
+  const router = useRouter();
+  const [loginId, setLoginId] = useState("");
+  const [found, setFound] = useState<{ loginId: string; displayName: string } | null>(null);
+  const [error, setError] = useState<{ code: string; message: string } | null>(null);
+  const [checking, setChecking] = useState(false);
+  const [sending, setSending] = useState(false);
+
+  const toError = (e: unknown) => ({ code: e instanceof ApiError ? e.code : "", message: getErrorMessage(e) });
+
+  const handleChange = (v: string) => {
+    setLoginId(v);
+    setFound(null); // ID를 고치면 다시 확인
+    setError(null);
+  };
+
+  /** MEMBER-01 계정 확인 (분당 10회, 429면 서버 문구) */
+  const handleLookup = async () => {
+    const id = loginId.trim();
+    if (!id) {
+      setError({ code: "REQUIRED", message: "상대 계정 ID를 입력해 주세요." });
+      return;
+    }
+    setChecking(true);
+    setError(null);
+    try {
+      const user = await lookupUser(id);
+      setFound({ loginId: id, displayName: user.displayName });
+    } catch (e) {
+      setFound(null);
+      setError(toError(e));
+    } finally {
+      setChecking(false);
+    }
+  };
+
+  /** INVITE-01 초대 발송 (권한 값은 보내지 않음) */
+  const handleInvite = async () => {
+    if (!found) return;
+    setSending(true);
+    try {
+      await sendInvite(found.loginId);
+      router.push("/settings");
+    } catch (e) {
+      setFound(null);
+      setError(toError(e));
+      setSending(false);
+    }
+  };
+
+  const notFound = error?.code === "INVITE_USER_NOT_FOUND";
 
   return (
     <main className="flex flex-col pb-[120px]">
@@ -97,8 +122,8 @@ export default function InvitePage() {
             </div>
             {/* 라벨 높이만큼 내려서 입력칸과 맞춤 (Figma pt 30) */}
             <div className="shrink-0 pt-[30px]">
-              <Button variant="soft" fullWidth={false} className="w-[76px] px-0" onClick={handleLookup}>
-                확인
+              <Button variant="soft" fullWidth={false} className="w-[76px] px-0" onClick={handleLookup} disabled={checking}>
+                {checking ? "…" : "확인"}
               </Button>
             </div>
           </div>

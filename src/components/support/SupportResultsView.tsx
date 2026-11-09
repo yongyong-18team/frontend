@@ -1,12 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Header, Button, Chip, EmptyState, ListRow, Select } from "@/components/common";
+import { Header, Button, Chip, EmptyState, ErrorState, ListRow, Select } from "@/components/common";
 import { BuildingIcon, ChatIcon, InfoIcon, SearchIcon } from "@/components/icons/Icons";
 import { DISTRICT_LABEL, type District } from "@/constants/labels";
-import { mockSubject } from "@/mocks/subject";
-import { mockSearchResources, type CareTerm, type ResourceKind, type ResourceResult } from "@/mocks/resource";
+import { useResourceSearch } from "@/hooks/useSupport";
+import { getErrorMessage } from "@/lib/api/client";
+import type { CareTerm, ResourceKind, ResourceResult } from "@/lib/api/resource";
 
 const DISTRICT_OPTIONS = (Object.keys(DISTRICT_LABEL) as District[]).map((d) => ({ value: d, label: DISTRICT_LABEL[d] }));
 
@@ -33,25 +34,24 @@ type Props = {
   initialDistrict: District | null;
 };
 
+/** 5.2 지원 제도 탐색 (RES-02). 지역을 안 정하고 오면 서버가 등록 지역으로 검색 → condition.district로 표시 */
 export default function SupportResultsView({ careTerm, neededDate, initialDistrict }: Props) {
   const router = useRouter();
-  // TODO(D4): 등록 지역은 SUBJ-02 district
-  const registeredDistrict = mockSubject.district;
 
-  const [district, setDistrict] = useState<District>(initialDistrict ?? registeredDistrict);
+  const [district, setDistrict] = useState<District | null>(initialDistrict);
   const [kind, setKind] = useState<ResourceKind | null>(null);
 
-  // 지역·필터가 바뀌면 다시 검색 (5.1 조건 careTerm·neededDate는 그대로 유지)
-  // TODO(D4): RES-02 API로 교체 (GET /subjects/{subjectId}/resources/search?careTerm=&neededDate=&district=&kind=)
-  const res = useMemo(
-    () =>
-      mockSearchResources(
-        { careTerm: careTerm ?? undefined, neededDate: neededDate ?? undefined, district, kind: kind ?? undefined },
-        registeredDistrict,
-      ),
-    [careTerm, neededDate, district, kind, registeredDistrict],
-  );
-  const count = res.results.length;
+  // 지역·분류가 바뀌면 다시 검색 (5.1 조건 careTerm·neededDate는 그대로 유지)
+  const { state, retry } = useResourceSearch({
+    careTerm: careTerm ?? undefined,
+    neededDate: neededDate ?? undefined,
+    district: district ?? undefined,
+    kind: kind ?? undefined,
+  });
+
+  const data = state.phase === "done" ? state.data : null;
+  const shownDistrict = district ?? data?.condition.district ?? "";
+  const count = data?.results.length ?? 0;
 
   return (
     <main className="flex flex-col pb-[120px]">
@@ -62,7 +62,8 @@ export default function SupportResultsView({ careTerm, neededDate, initialDistri
         <Select
           label="지역"
           required
-          value={district}
+          value={shownDistrict}
+          placeholder="지역을 불러오는 중이에요"
           options={DISTRICT_OPTIONS}
           formatSelected={(o) => `용인시 ${o.label}`}
           onChange={(v) => setDistrict(v as District)}
@@ -72,7 +73,7 @@ export default function SupportResultsView({ careTerm, neededDate, initialDistri
         <section className="flex flex-col gap-3">
           <div className="flex items-center gap-2">
             <h2 className="min-w-0 flex-1 text-subhead font-bold text-text-primary">관련 지원 정보</h2>
-            <Chip tone={count > 0 ? "primary" : "pink"}>{count}건</Chip>
+            {data && <Chip tone={count > 0 ? "primary" : "pink"}>{count}건</Chip>}
           </div>
 
           <div className="flex gap-2" role="group" aria-label="분류">
@@ -96,9 +97,18 @@ export default function SupportResultsView({ careTerm, neededDate, initialDistri
             })}
           </div>
 
-          {count > 0 && (
+          {state.phase === "loading" && (
+            <div className="flex flex-col gap-2" role="status" aria-label="불러오는 중이에요">
+              <div className="h-[72px] animate-pulse rounded-card bg-bg-subtle" />
+              <div className="h-[72px] animate-pulse rounded-card bg-bg-subtle" />
+            </div>
+          )}
+
+          {state.phase === "error" && <ErrorState message={getErrorMessage(state.error)} onRetry={retry} />}
+
+          {data && count > 0 && (
             <div className="flex flex-col divide-y divide-line-base rounded-card bg-bg-surface px-4 py-1">
-              {res.results.map((r) => {
+              {data.results.map((r) => {
                 const k = KIND_STYLE[r.kind];
                 return (
                   <ListRow
@@ -122,7 +132,7 @@ export default function SupportResultsView({ careTerm, neededDate, initialDistri
         </section>
 
         {/* 5.2 [예외] 검색 결과 없음 */}
-        {count === 0 && (
+        {data && count === 0 && (
           <div className="flex flex-col gap-6">
             <EmptyState
               icon={<SearchIcon size={44} />}
@@ -136,18 +146,20 @@ export default function SupportResultsView({ careTerm, neededDate, initialDistri
         )}
 
         {/* 안내 + RES-02 disclaimer (항상 표시) */}
-        <div className="flex flex-col gap-1.5">
-          {count > 0 && (
+        {data && (
+          <div className="flex flex-col gap-1.5">
+            {count > 0 && (
+              <p className="flex items-start gap-1.5 text-caption font-medium leading-[1.45] text-text-tertiary">
+                <InfoIcon size={16} className="shrink-0" />
+                용인시 복지시설 정보·경기데이터드림 기준이에요
+              </p>
+            )}
             <p className="flex items-start gap-1.5 text-caption font-medium leading-[1.45] text-text-tertiary">
               <InfoIcon size={16} className="shrink-0" />
-              용인시 복지시설 정보·경기데이터드림 기준이에요
+              {data.disclaimer}
             </p>
-          )}
-          <p className="flex items-start gap-1.5 text-caption font-medium leading-[1.45] text-text-tertiary">
-            <InfoIcon size={16} className="shrink-0" />
-            {res.disclaimer}
-          </p>
-        </div>
+          </div>
+        )}
       </div>
     </main>
   );

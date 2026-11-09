@@ -1,5 +1,5 @@
 import { useMemo, useSyncExternalStore } from "react";
-import type { ShareApproveResponse, ShareDraftRequest, ShareDraftResponse } from "@/mocks/share";
+import type { ShareApproveResponse, ShareDraftRequest, ShareDraftResponse } from "@/lib/api/share";
 
 /**
  * 4.1 → 4.2 → 4.3 사이에 값을 넘기는 임시 저장소 (이 탭에서만, 새로고침해도 유지)

@@ -2,21 +2,40 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Header, Button, Chip, EmptyState, Modal } from "@/components/common";
+import { Header, Button, Chip, EmptyState, ErrorState, LoadingState, Modal } from "@/components/common";
 import { CheckIcon, LockIcon, MailIcon } from "@/components/icons/Icons";
+import { useReceivedInvitations } from "@/hooks/useAccount";
+import { getErrorMessage } from "@/lib/api/client";
+import { acceptInvitation, rejectInvitation, type ReceivedInvitation } from "@/lib/api/member";
+import { setSubjectId } from "@/lib/auth/session";
 import { formatDate } from "@/lib/format";
-import {
-  mockAcceptInvite,
-  mockReceivedInvitations,
-  mockRejectInvite,
-  type ReceivedInvitation,
-} from "@/mocks/account";
 
-/** 6.2.1 받은 초대 (한 번에 하나씩, 처리하면 다음 초대) */
+/** 6.2.1 받은 초대 (INVITE-04·05·06) — 한 번에 하나씩, 처리하면 다음 초대 */
 export default function InvitationsPage() {
+  const { state, retry } = useReceivedInvitations();
+
+  if (state.phase === "loading") {
+    return (
+      <main className="flex flex-col pb-[120px]">
+        <Header title="받은 초대" back />
+        <LoadingState count={2} label="받은 초대를 불러오는 중이에요" />
+      </main>
+    );
+  }
+  if (state.phase === "error") {
+    return (
+      <main className="flex flex-col pb-[120px]">
+        <Header title="받은 초대" back />
+        <ErrorState message={getErrorMessage(state.error)} onRetry={retry} />
+      </main>
+    );
+  }
+  return <InvitationsView initial={state.data.invitations} />;
+}
+
+function InvitationsView({ initial }: { initial: ReceivedInvitation[] }) {
   const router = useRouter();
-  // TODO(D4): INVITE-04 API로 교체
-  const [list, setList] = useState<ReceivedInvitation[]>(mockReceivedInvitations);
+  const [list, setList] = useState<ReceivedInvitation[]>(initial);
   const [error, setError] = useState<string | null>(null);
   const [rejectOpen, setRejectOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -26,37 +45,43 @@ export default function InvitationsPage() {
   /** 처리된 초대를 빼고 다음으로 */
   const next = () => setList((prev) => prev.slice(1));
 
-  const handleAccept = () => {
+  /** INVITE-05 수락 → 받은 대상자를 현재 대상자로 저장하고 홈으로 */
+  const handleAccept = async () => {
     if (!current) return;
     setBusy(true);
-    // TODO(D4): INVITE-05 수락 → { subjectId, role }
-    const res = mockAcceptInvite(current.invitationId);
-    setBusy(false);
-    if (!res.ok) {
-      setError(res.error.message);
+    setError(null);
+    try {
+      const { subjectId } = await acceptInvitation(current.invitationId);
+      setSubjectId(subjectId);
+      router.push("/home");
+    } catch (e) {
+      // 예) INVITE_NOT_PENDING(보낸 사람이 취소함) → 문구 보여 주고 다음 초대로
+      setError(getErrorMessage(e));
       next();
-      return;
+      setBusy(false);
     }
-    console.log("INVITE-05 수락", res.data);
-    router.push("/home");
   };
 
-  const handleReject = () => {
+  /** INVITE-06 거절 */
+  const handleReject = async () => {
     if (!current) return;
     setRejectOpen(false);
     setBusy(true);
-    // TODO(D4): INVITE-06 거절
-    const res = mockRejectInvite(current.invitationId);
-    setBusy(false);
-    setError(res.ok ? null : res.error.message);
-    next();
+    setError(null);
+    try {
+      await rejectInvitation(current.invitationId);
+    } catch (e) {
+      setError(getErrorMessage(e));
+    } finally {
+      next();
+      setBusy(false);
+    }
   };
 
   return (
     <main className="flex flex-col pb-[120px]">
       <Header title="받은 초대" subtitle="수락하면 돌봄 정보 조회, 공유, 지원 신청이 가능해요" back />
 
-      {/* 409 INVITE_NOT_PENDING 등 */}
       {error && (
         <p role="alert" className="mx-6 mb-4 rounded-input bg-pink-soft px-4 py-3 text-caption font-bold text-pink-strong">
           {error}
@@ -107,7 +132,7 @@ export default function InvitationsPage() {
 
           <div className="flex flex-col gap-2.5">
             <Button onClick={handleAccept} disabled={busy}>
-              초대 수락
+              {busy ? "처리 중..." : "초대 수락"}
             </Button>
             <Button variant="outline" onClick={() => setRejectOpen(true)} disabled={busy}>
               거절하기

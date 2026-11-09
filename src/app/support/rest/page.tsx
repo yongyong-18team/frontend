@@ -2,10 +2,12 @@
 
 import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { Header, Button, ListRow } from "@/components/common";
+import { Header, Button, ListRow, LoadingState, ErrorState } from "@/components/common";
 import { BuildingIcon, ChatIcon, CoffeeIcon, HeartIcon, InfoIcon } from "@/components/icons/Icons";
 import type { Tone } from "@/components/icons/SectionIcons";
-import { mockCaregiverSupport } from "@/mocks/support";
+import { useBurnoutGuide } from "@/hooks/useSupport";
+import { getErrorMessage } from "@/lib/api/client";
+import type { BurnoutGuide } from "@/lib/api/resource";
 
 /** programType → 아이콘·색·설명 (Figma 5.4 문구, 서버가 설명을 주지 않아 임시) */
 const PROGRAM_STYLE: Record<string, { icon: ReactNode; tone: Tone; description: string }> = {
@@ -17,9 +19,31 @@ const DEFAULT_STYLE = { icon: <ChatIcon size={22} />, tone: "mint" as Tone, desc
 
 /** 5.4 보호자 휴식 안내 (화면에 "소진" 같은 진단처럼 들리는 단어를 쓰지 않음) */
 export default function SupportRestPage() {
+  const { state, retry } = useBurnoutGuide();
+
+  if (state.phase === "loading") {
+    return (
+      <main className="flex flex-col pb-[120px]">
+        <Header title="보호자도 돌봄이 필요해요" back />
+        <LoadingState count={2} />
+      </main>
+    );
+  }
+  if (state.phase === "error") {
+    // 공동 관리자 등 권한이 없으면 서버 문구(403) 그대로
+    return (
+      <main className="flex flex-col pb-[120px]">
+        <Header title="보호자도 돌봄이 필요해요" back />
+        <ErrorState message={getErrorMessage(state.error)} onRetry={retry} />
+      </main>
+    );
+  }
+  return <SupportRestView guide={state.data} />;
+}
+
+function SupportRestView({ guide }: { guide: BurnoutGuide }) {
   const router = useRouter();
-  // TODO(D4): SUP-01 API로 교체. 공동 관리자는 403 → 오류 화면
-  const { message, programs } = mockCaregiverSupport;
+  const { message, programs } = guide;
 
   return (
     <main className="flex flex-col pb-[120px]">

@@ -6,7 +6,8 @@ import { Header, Button, Chip, EmptyState, LoadingState } from "@/components/com
 import { LockIcon } from "@/components/icons/Icons";
 import SharedDocument from "@/components/share/SharedDocument";
 import { DOCUMENT_TYPE_LABEL } from "@/constants/labels";
-import { mockApprove, type ShareDraftRequest } from "@/mocks/share";
+import { ApiError, getErrorMessage } from "@/lib/api/client";
+import { approveShare, type ShareDraftRequest } from "@/lib/api/share";
 import { clearShareDraft, saveIssuedShare, useShareDraft } from "@/lib/shareDraft";
 
 /** 4.1로 돌아가는 주소 (들어왔던 문서 유형·기록 그대로) */
@@ -52,16 +53,20 @@ export default function SharePreviewPage() {
   const { request, response } = draft;
   const { preview } = response;
 
-  const handleCreateLink = () => {
+  /** SHARE-03: 승인 → 링크 발급 (shareUrl은 이 응답에서만) */
+  const handleCreateLink = async () => {
     setSubmitting(true);
     setError(null);
-    // TODO(D4): SHARE-03 API로 교체 (POST /subjects/{subjectId}/shares/{shareId}/approve)
-    //  - 실패하면 setError({ code, message: error.message })
-    //  - SHARE_NOT_FOUND(초안이 1일 지나 삭제됨)면 4.1에서 다시 만들게 안내
-    const approve = mockApprove(response.shareId, preview.documentType);
-    saveIssuedShare({ approve, recipientLabel: request.recipientLabel });
-    clearShareDraft();
-    router.push("/share/done");
+    try {
+      const approve = await approveShare(response.shareId);
+      saveIssuedShare({ approve, recipientLabel: request.recipientLabel });
+      clearShareDraft();
+      router.push("/share/done");
+    } catch (e) {
+      // SHARE_NOT_FOUND(초안이 1일 지나 삭제됨)면 아래에서 "공유 범위부터 다시 만들기" 안내
+      setError({ code: e instanceof ApiError ? e.code : "", message: getErrorMessage(e) });
+      setSubmitting(false);
+    }
   };
 
   return (

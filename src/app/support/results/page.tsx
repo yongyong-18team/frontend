@@ -1,6 +1,6 @@
 import SupportResultsView from "@/components/support/SupportResultsView";
 import { DISTRICT_LABEL, type District } from "@/constants/labels";
-import type { CareTerm } from "@/mocks/resource";
+import type { CareTerm } from "@/lib/api/resource";
 
 const TERMS: CareTerm[] = ["SHORT", "LONG"];
 

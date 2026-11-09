@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Header, Button, Input, Select, EmptyState } from "@/components/common";
+import { Header, Button, Input, Select, EmptyState, LoadingState, ErrorState } from "@/components/common";
 import { PlusIcon, XIcon } from "@/components/icons/Icons";
 import {
   DISTRICT_LABEL,
@@ -11,8 +11,17 @@ import {
   type District,
   type SectionCode,
 } from "@/constants/labels";
-import { mockGuide } from "@/mocks/guide";
-import { mockSubject } from "@/mocks/subject";
+import { useGuideEdit } from "@/hooks/useGuide";
+import { getErrorMessage } from "@/lib/api/client";
+import {
+  addGuideEntry,
+  deleteGuideEntry,
+  updateGuideEntry,
+  updateSubject,
+  type GuideData,
+  type SubjectData,
+  type SubjectPatch,
+} from "@/lib/api/guide";
 
 /** 화면에서 고치는 중인 항목 */
 type DraftEntry = {
@@ -37,8 +46,8 @@ const SECTION_OPTIONS = SECTION_ORDER.map((s) => ({ value: s, label: SECTION_LAB
 
 const MAX_ENTRY = 500; // GUIDE-02·03 content 1~500자
 
-function initialDrafts(): DraftEntry[] {
-  return mockGuide.sections.flatMap((s) =>
+function initialDrafts(guide: GuideData): DraftEntry[] {
+  return guide.sections.flatMap((s) =>
     s.entries.map((e) => ({
       key: `e${e.entryId}`,
       entryId: e.entryId,
@@ -50,11 +59,32 @@ function initialDrafts(): DraftEntry[] {
   );
 }
 
+/** 3.2 설명서 편집 (SUBJ-02·03, GUIDE-01~04) */
 export default function GuideEditPage() {
+  const { state, retry } = useGuideEdit();
+
+  if (state.phase === "loading") {
+    return (
+      <main className="flex flex-col pb-[120px]">
+        <Header title="돌봄 설명서 편집" back />
+        <LoadingState count={3} label="설명서를 불러오는 중이에요" />
+      </main>
+    );
+  }
+  if (state.phase === "error") {
+    return (
+      <main className="flex flex-col pb-[120px]">
+        <Header title="돌봄 설명서 편집" back />
+        <ErrorState message={getErrorMessage(state.error)} onRetry={retry} />
+      </main>
+    );
+  }
+  return <GuideEditForm guide={state.data.guide} subject={state.data.subject} />;
+}
+
+function GuideEditForm({ guide, subject }: { guide: GuideData; subject: SubjectData }) {
   const router = useRouter();
-  // TODO(D4): SUBJ-02, GUIDE-01 API로 교체
-  const subject = mockSubject;
-  const editable = mockGuide.editable;
+  const editable = guide.editable;
 
   // 기본 정보 (SUBJ-03)
   const [name, setName] = useState(subject.name);
@@ -65,11 +95,12 @@ export default function GuideEditPage() {
 
   // 항목 (GUIDE-02·03·04)
   const [section, setSection] = useState<SectionCode>("PROHIBITED");
-  const [drafts, setDrafts] = useState<DraftEntry[]>(initialDrafts);
+  const [drafts, setDrafts] = useState<DraftEntry[]>(() => initialDrafts(guide));
   const newKey = useRef(0);
 
   const [errors, setErrors] = useState<{ name?: string; entries?: string }>({});
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const visible = drafts.filter((d) => d.section === section && !d.deleted);
 
@@ -106,7 +137,7 @@ export default function GuideEditPage() {
     if (Object.keys(nextErrors).length > 0) return;
 
     // 2. SUBJ-03: 바뀐 값만
-    const subjectPatch: Record<string, string | number | null> = {};
+    const subjectPatch: SubjectPatch = {};
     if (trimmedName !== subject.name) subjectPatch.name = trimmedName;
     if (Number(birthYear) !== subject.birthYear) subjectPatch.birthYear = Number(birthYear);
     if (district !== subject.district) subjectPatch.district = district;
@@ -114,24 +145,38 @@ export default function GuideEditPage() {
     if (emergencyContact.trim() !== (subject.emergencyContact ?? ""))
       subjectPatch.emergencyContact = emergencyContact.trim() || null;
 
-    // 3. GUIDE-02 / 03 / 04
-    const added = drafts
-      .filter((d) => d.entryId === null && !d.deleted && d.content.trim() !== "")
-      .map((d) => ({ section: d.section, content: d.content.trim() }));
-    const edited = drafts
-      .filter((d) => d.entryId !== null && !d.deleted && d.content.trim() !== d.original)
-      .map((d) => ({ entryId: d.entryId, content: d.content.trim() }));
-    const deleted = drafts.filter((d) => d.entryId !== null && d.deleted).map((d) => d.entryId);
+    // 3. GUIDE-02 / 03 / 04 대상
+    const added = drafts.filter((d) => d.entryId === null && !d.deleted && d.content.trim() !== "");
+    const edited = drafts.filter((d) => d.entryId !== null && !d.deleted && d.content.trim() !== d.original);
+    const deleted = drafts.filter((d) => d.entryId !== null && d.deleted);
 
+    // 4. 순서대로 저장. 실패하면 멈추고 서버 문구를 보여줌 (입력은 그대로 유지)
     setSaving(true);
-    // TODO(D4): 실제 API 호출. 실패하면 error.message를 보여주고 입력은 그대로 둔다.
-    console.log("SUBJ-03 PATCH", Object.keys(subjectPatch).length ? subjectPatch : "(변경 없음)");
-    console.log("GUIDE-02 추가", added);
-    console.log("GUIDE-03 수정", edited);
-    console.log("GUIDE-04 삭제", deleted);
-    setSaving(false);
-    router.push("/guide");
+    setSaveError(null);
+    try {
+      if (Object.keys(subjectPatch).length > 0) await updateSubject(subjectPatch);
+      for (const d of added) {
+        const { entryId } = await addGuideEntry(d.section, d.content.trim());
+        markSaved(d.key, { entryId, original: d.content.trim() });
+      }
+      for (const d of edited) {
+        await updateGuideEntry(d.entryId!, d.content.trim());
+        markSaved(d.key, { original: d.content.trim() });
+      }
+      for (const d of deleted) {
+        await deleteGuideEntry(d.entryId!);
+        setDrafts((prev) => prev.filter((x) => x.key !== d.key));
+      }
+      router.push("/guide");
+    } catch (e) {
+      setSaveError(getErrorMessage(e));
+      setSaving(false);
+    }
   };
+
+  /** 저장에 성공한 항목은 "원래 값"을 바꿔서, 다시 저장할 때 또 보내지 않게 함 */
+  const markSaved = (key: string, patch: { entryId?: number; original: string }) =>
+    setDrafts((prev) => prev.map((d) => (d.key === key ? { ...d, ...patch } : d)));
 
   // 공동 관리자는 편집 불가 (서버도 403으로 막음)
   if (!editable) {
@@ -253,6 +298,12 @@ export default function GuideEditPage() {
 
           {errors.entries && <p className="text-caption text-pink-strong">{errors.entries}</p>}
         </section>
+
+        {saveError && (
+          <p role="alert" className="rounded-input bg-pink-soft px-4 py-3 text-caption font-bold text-pink-strong">
+            {saveError}
+          </p>
+        )}
 
         <Button onClick={handleSave} disabled={saving}>
           {saving ? "저장 중..." : "수정 내용 저장"}
