@@ -1,0 +1,76 @@
+# .github/workflows/deploy.yml
+# main에 머지되면 운영 주소로, PR을 올리면 미리보기 주소로 Vercel에 배포합니다.
+# Vercel Pro 팀은 "팀 멤버가 아닌 사람의 커밋"을 막습니다. CLI도 .git의 커밋 작성자 정보를 보내서 막히므로,
+# 배포 전에 .git을 지워 커밋 정보 없이 프로젝트 주인의 토큰으로 배포합니다.
+#
+# 필요한 GitHub Secrets (저장소 Settings → Secrets and variables → Actions)
+#   VERCEL_TOKEN       Vercel Account Settings → Tokens 에서 만든 토큰
+#   VERCEL_ORG_ID      Vercel 팀 ID (team_로 시작)
+#   VERCEL_PROJECT_ID  Vercel 프로젝트 ID (prj_로 시작)
+# 환경 변수(NEXT_PUBLIC_API_BASE_URL 등)는 Vercel 프로젝트 Settings → Environment Variables 에 넣으면
+# 아래 "vercel pull" 단계에서 자동으로 받아옵니다.
+
+name: Deploy to Vercel
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch: # Actions 탭에서 "Run workflow"로 직접 배포
+
+concurrency:
+  group: vercel-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+jobs:
+  deploy:
+    # 포크에서 온 PR은 Secrets를 못 읽으므로 건너뜀
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      # 커밋 작성자 정보를 보내지 않도록 Git 정보 제거 (팀원 누가 머지해도 배포되게)
+      - name: Remove git metadata
+        run: rm -rf .git
+
+      - name: Install Vercel CLI
+        run: npm install --global vercel@latest
+
+      - name: Pick target (main → production, PR → preview)
+        id: target
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "env=preview" >> "$GITHUB_OUTPUT"
+            echo "flag=" >> "$GITHUB_OUTPUT"
+          else
+            echo "env=production" >> "$GITHUB_OUTPUT"
+            echo "flag=--prod" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Pull Vercel settings and env vars
+        run: vercel pull --yes --environment=${{ steps.target.outputs.env }} --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Build
+        run: vercel build ${{ steps.target.outputs.flag }} --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Deploy
+        id: deploy
+        run: |
+          url=$(vercel deploy --prebuilt ${{ steps.target.outputs.flag }} --token=${{ secrets.VERCEL_TOKEN }})
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+
+      - name: Show URL
+        run: |
+          echo "### 배포 완료 (${{ steps.target.outputs.env }})" >> "$GITHUB_STEP_SUMMARY"
+          echo "${{ steps.deploy.outputs.url }}" >> "$GITHUB_STEP_SUMMARY"
