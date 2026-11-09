@@ -2,38 +2,67 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Header, Chip, EmptyState, Modal } from "@/components/common";
+import { Header, Chip, EmptyState, ErrorState, LoadingState, Modal } from "@/components/common";
 import { LockIcon } from "@/components/icons/Icons";
 import { DOCUMENT_TYPE_LABEL } from "@/constants/labels";
+import { useShareHistory } from "@/hooks/useShare";
+import { getErrorMessage } from "@/lib/api/client";
+import { revokeShare, type ShareHistoryItem, type ShareStatus } from "@/lib/api/share";
 import { formatDate } from "@/lib/format";
-import { mockShareHistory, type ShareHistoryItem, type ShareStatus } from "@/mocks/share";
 
-const STATUS: Record<ShareStatus, { label: string; tone: "mint" | "neutral" | "pink" }> = {
+const STATUS: Record<Exclude<ShareStatus, "DRAFT">, { label: string; tone: "mint" | "neutral" | "pink" }> = {
   ACTIVE: { label: "공유 중", tone: "mint" },
   EXPIRED: { label: "만료", tone: "neutral" },
   REVOKED: { label: "중지됨", tone: "pink" },
 };
 
-/** 4.3 공유 내역·접근 중지 (Figma 디자인 없음 → 3.1·4.1 스타일) */
+/** 4.3 공유 내역·접근 중지 (SHARE-04·05, Figma 디자인 없음 → 3.1·4.1 스타일) */
 export default function ShareHistoryPage() {
+  const { state, retry } = useShareHistory();
+
+  if (state.phase === "loading") {
+    return (
+      <main className="flex flex-col pb-[120px]">
+        <Header title="공유 내역" back />
+        <LoadingState count={3} label="공유 내역을 불러오는 중이에요" />
+      </main>
+    );
+  }
+  if (state.phase === "error") {
+    return (
+      <main className="flex flex-col pb-[120px]">
+        <Header title="공유 내역" back />
+        <ErrorState message={getErrorMessage(state.error)} onRetry={retry} />
+      </main>
+    );
+  }
+  // 초안(DRAFT)은 명세상 내역에 나오지 않지만, 혹시 오면 걸러냄
+  return <ShareHistoryList initial={state.data.shares.filter((s) => s.status !== "DRAFT")} />;
+}
+
+function ShareHistoryList({ initial }: { initial: ShareHistoryItem[] }) {
   const router = useRouter();
-  // TODO(D4): SHARE-04 API로 교체 (GET /subjects/{subjectId}/shares)
-  const [items, setItems] = useState<ShareHistoryItem[]>(mockShareHistory);
+  const [items, setItems] = useState<ShareHistoryItem[]>(initial);
   const [target, setTarget] = useState<ShareHistoryItem | null>(null);
   const [revoking, setRevoking] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleRevoke = () => {
+  /** SHARE-05: 실패하면 서버 문구 (예: SHARE_ALREADY_INACTIVE, SHARE_FORBIDDEN) */
+  const handleRevoke = async () => {
     if (!target) return;
     setRevoking(true);
     setError(null);
-    // TODO(D4): SHARE-05 API로 교체 (POST /subjects/{subjectId}/shares/{shareId}/revoke)
-    //  - 실패하면 setError(error.message)  예) SHARE_ALREADY_INACTIVE, SHARE_FORBIDDEN
-    setItems((prev) =>
-      prev.map((it) => (it.shareId === target.shareId ? { ...it, status: "REVOKED", revocable: false } : it)),
-    );
-    setRevoking(false);
-    setTarget(null);
+    try {
+      await revokeShare(target.shareId);
+      setItems((prev) =>
+        prev.map((it) => (it.shareId === target.shareId ? { ...it, status: "REVOKED", revocable: false } : it)),
+      );
+    } catch (e) {
+      setError(getErrorMessage(e));
+    } finally {
+      setRevoking(false);
+      setTarget(null);
+    }
   };
 
   return (
@@ -53,7 +82,7 @@ export default function ShareHistoryPage() {
         ) : (
           <ul className="flex flex-col gap-3">
             {items.map((it) => {
-              const status = STATUS[it.status];
+              const status = STATUS[it.status as Exclude<ShareStatus, "DRAFT">];
               return (
                 <li key={it.shareId} className="flex flex-col gap-2 rounded-card bg-bg-surface px-4 py-3.5">
                   <div className="flex items-center gap-2">
