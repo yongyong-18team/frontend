@@ -3,11 +3,13 @@
 import { useId, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Header, Button, Chip, ListRow, Dialog } from "@/components/common";
+import { Header, Button, Chip, ListRow, Dialog, LoadingState, ErrorState } from "@/components/common";
 import { InfoIcon, PhoneIcon, PlusIcon, UserIcon, XIcon } from "@/components/icons/Icons";
 import { SectionIcon, SECTION_TONE, TONE_CLASS } from "@/components/icons/SectionIcons";
 import { DISTRICT_LABEL, SECTION_LABEL, type SectionCode } from "@/constants/labels";
-import { mockGuide, type GuideSection } from "@/mocks/guide";
+import { useGuide } from "@/hooks/useGuide";
+import { getErrorMessage } from "@/lib/api/client";
+import type { GuideData, GuideSectionBlock } from "@/lib/api/guide";
 
 /** 배치는 Figma 3.1: 긴급 카드 요약 4칸 + 항목별 상세 5줄 */
 const SUMMARY_SECTIONS: SectionCode[] = ["PROHIBITED", "HEALTH_RISK", "COMMUNICATION", "BEHAVIOR_RESPONSE"];
@@ -18,21 +20,44 @@ function formatDate(iso: string) {
   return `${Number(iso.slice(5, 7))}월 ${Number(iso.slice(8, 10))}일`;
 }
 
-function latestDate(section: GuideSection, fallback: string) {
+/** 섹션에서 가장 최근 갱신일. 항목이 없으면 설명서 갱신일, 그것도 없으면 null */
+function latestDate(section: GuideSectionBlock, fallback: string | null) {
   const dates = section.entries.map((e) => e.updatedAt).sort();
   return dates.length > 0 ? dates[dates.length - 1] : fallback;
 }
 
+/** 3.1 돌봄 설명서 (GUIDE-01) */
 export default function GuidePage() {
+  const { state, retry } = useGuide();
+
+  if (state.phase === "loading") {
+    return (
+      <main className="flex flex-col pb-[120px]">
+        <Header title="돌봄 설명서" />
+        <LoadingState count={3} label="설명서를 불러오는 중이에요" />
+      </main>
+    );
+  }
+  if (state.phase === "error") {
+    return (
+      <main className="flex flex-col pb-[120px]">
+        <Header title="돌봄 설명서" />
+        <ErrorState message={getErrorMessage(state.error)} onRetry={retry} />
+      </main>
+    );
+  }
+  return <GuideView guide={state.data} />;
+}
+
+function GuideView({ guide }: { guide: GuideData }) {
   const router = useRouter();
   const dialogTitleId = useId();
-  // TODO(D4): GUIDE-01 API로 교체 (GET /subjects/{subjectId}/guide)
-  const guide = mockGuide;
   const { basicInfo, sections, editable, updatedAt } = guide;
 
-  const [openSection, setOpenSection] = useState<GuideSection | null>(null);
-  const findSection = (code: SectionCode): GuideSection =>
+  const [openSection, setOpenSection] = useState<GuideSectionBlock | null>(null);
+  const findSection = (code: SectionCode): GuideSectionBlock =>
     sections.find((s) => s.section === code) ?? { section: code, entries: [] };
+  const openDate = openSection ? latestDate(openSection, updatedAt) : null;
 
   return (
     <main className="flex flex-col pb-[120px]">
@@ -41,7 +66,7 @@ export default function GuidePage() {
         subtitle="승인된 정보가 차곡차곡 쌓여요"
         right={
           <div className="flex flex-col items-end gap-1.5">
-            <Chip tone="mint">{formatDate(updatedAt)} 갱신</Chip>
+            {updatedAt && <Chip tone="mint">{formatDate(updatedAt)} 갱신</Chip>}
             <Link href="/share/history" className="py-1 text-caption font-bold text-primary-strong">
               공유 내역 ›
             </Link>
@@ -182,7 +207,7 @@ export default function GuidePage() {
 
             <p className="flex items-center gap-1.5 text-micro font-medium leading-[1.45] text-text-tertiary">
               <InfoIcon size={14} className="shrink-0" />
-              {formatDate(latestDate(openSection, updatedAt))} 갱신 · 승인된 기록 {openSection.entries.length}건 반영
+              {openDate ? `${formatDate(openDate)} 갱신 · ` : ""}승인된 기록 {openSection.entries.length}건 반영
             </p>
 
             {editable && (
