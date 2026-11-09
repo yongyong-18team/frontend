@@ -94,7 +94,7 @@ const DETAILS: ResourceDetail[] = [
   },
   {
     resourceId: 1003, kind: "PROGRAM", name: "청소년 발달장애학생 방과후활동서비스", phone: "031-000-0003", officialUrl: "https://example.org/1003",
-    programType: "AFTER_SCHOOL", careTerm: "LONG",
+    programType: "ACTIVITY_SUPPORT", careTerm: "LONG",
     summary: "방과 후 시간에 정기적으로 활동과 돌봄을 지원하는 서비스",
     eligibilitySummary: "만 12세 이상 18세 미만 발달장애 학생",
     procedure: "주민센터 신청 → 서비스 지원 종합조사 → 제공기관 선택",

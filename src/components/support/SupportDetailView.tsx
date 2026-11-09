@@ -2,9 +2,11 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Header, Chip, ErrorState } from "@/components/common";
+import { Header, Chip, ErrorState, LoadingState } from "@/components/common";
 import { BuildingIcon, ChatIcon, ExternalLinkIcon, InfoIcon, MapPinIcon, PhoneIcon } from "@/components/icons/Icons";
-import type { ResourceDetail } from "@/mocks/resource";
+import { useResourceDetail } from "@/hooks/useSupport";
+import { ApiError, getErrorMessage } from "@/lib/api/client";
+import type { ResourceDetail } from "@/lib/api/resource";
 
 /** 5.2와 같은 표시: 시설 = 건물·하늘 / 제도 = 말풍선·민트 */
 const KIND_STYLE = {
@@ -27,23 +29,43 @@ function infoRows(d: ResourceDetail): { label: string; value: string }[] {
   ];
 }
 
-export default function SupportDetailView({ detail }: { detail: ResourceDetail | null }) {
+/** 5.3 기관·제도 상세 (RES-01, 로그인 필요 → 브라우저에서 불러옴) */
+export default function SupportDetailView({ resourceId }: { resourceId: number }) {
   const router = useRouter();
+  const { state, retry } = useResourceDetail(resourceId);
 
-  if (!detail) {
+  if (state.phase === "loading") {
     return (
       <main className="flex flex-col pb-[120px]">
         <Header title="지원제도 상세 안내" back />
-        <ErrorState
-          title="지원 정보를 찾을 수 없어요"
-          description="정보가 바뀌었거나 없어졌을 수 있어요."
-          retryLabel="목록으로 돌아가기"
-          onRetry={() => router.push("/support/results")}
-        />
+        <LoadingState count={3} label="지원 정보를 불러오는 중이에요" />
       </main>
     );
   }
 
+  if (state.phase === "error") {
+    const notFound = state.error instanceof ApiError && state.error.status === 404;
+    return (
+      <main className="flex flex-col pb-[120px]">
+        <Header title="지원제도 상세 안내" back />
+        {notFound ? (
+          <ErrorState
+            title="지원 정보를 찾을 수 없어요"
+            description="정보가 바뀌었거나 없어졌을 수 있어요."
+            retryLabel="목록으로 돌아가기"
+            onRetry={() => router.push("/support/results")}
+          />
+        ) : (
+          <ErrorState message={getErrorMessage(state.error)} onRetry={retry} />
+        )}
+      </main>
+    );
+  }
+
+  return <SupportDetailBody detail={state.data} />;
+}
+
+function SupportDetailBody({ detail }: { detail: ResourceDetail }) {
   const k = KIND_STYLE[detail.kind];
   const sub = detail.kind === "PROGRAM" ? `출처 · ${detail.sourceDoc}` : detail.facilityType;
 

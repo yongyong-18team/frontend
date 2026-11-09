@@ -1,12 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Header, Button, Chip, DatePicker, Radio, Select } from "@/components/common";
+import { Header, Button, Chip, DatePicker, Radio, Select, LoadingState, ErrorState } from "@/components/common";
 import { InfoIcon, MapPinIcon } from "@/components/icons/Icons";
 import { DISTRICT_LABEL, type District } from "@/constants/labels";
-import { mockSubject } from "@/mocks/subject";
-import { mockSearchResources, type CareTerm } from "@/mocks/resource";
+import { useResourceSearch, useSubjectForSupport } from "@/hooks/useSupport";
+import { getErrorMessage } from "@/lib/api/client";
+import type { CareTerm } from "@/lib/api/resource";
 
 /** Figma 5.1 라디오 문구 */
 const TERMS: { value: CareTerm; label: string; description: string }[] = [
@@ -15,24 +16,43 @@ const TERMS: { value: CareTerm; label: string; description: string }[] = [
 ];
 
 const DISTRICT_OPTIONS = (Object.keys(DISTRICT_LABEL) as District[]).map((d) => ({ value: d, label: DISTRICT_LABEL[d] }));
-/** 5.1 돌봄 공백 등록 (단기·장기) — 저장 없음, 조건만 5.2로 넘김 */
+
+/** 5.1 돌봄 공백 등록 (단기·장기) — 저장 없음, 조건만 5.2로 넘김. 등록 지역은 SUBJ-02 */
 export default function SupportFindPage() {
+  const { state, retry } = useSubjectForSupport();
+
+  if (state.phase === "loading") {
+    return (
+      <main className="flex flex-col pb-[120px]">
+        <Header title="내 상황에 맞는 돌봄 지원 찾기" back />
+        <LoadingState count={2} />
+      </main>
+    );
+  }
+  if (state.phase === "error") {
+    return (
+      <main className="flex flex-col pb-[120px]">
+        <Header title="내 상황에 맞는 돌봄 지원 찾기" back />
+        <ErrorState message={getErrorMessage(state.error)} onRetry={retry} />
+      </main>
+    );
+  }
+  return <SupportFindForm registeredDistrict={state.data.district} />;
+}
+
+function SupportFindForm({ registeredDistrict }: { registeredDistrict: District }) {
   const router = useRouter();
-  // TODO(D4): 등록 지역은 SUBJ-02 district
-  const registeredDistrict = mockSubject.district;
 
   const [careTerm, setCareTerm] = useState<CareTerm | null>(null);
   const [neededDate, setNeededDate] = useState("");
   const [district, setDistrict] = useState<District>(registeredDistrict);
   const [errors, setErrors] = useState<{ careTerm?: string; neededDate?: string }>({});
 
-  // 관련 지원 정보: 고른 조건으로 RES-02를 불러 첫 번째 제도를 보여 줌
-  // TODO(D4): RES-02 API로 교체 (GET /subjects/{subjectId}/resources/search?careTerm=&neededDate=&district=&kind=PROGRAM)
-  const related = useMemo(() => {
-    if (!careTerm) return null;
-    const res = mockSearchResources({ careTerm, neededDate: neededDate || undefined, district, kind: "PROGRAM" }, registeredDistrict);
-    return { first: res.results[0] ?? null, disclaimer: res.disclaimer };
-  }, [careTerm, neededDate, district, registeredDistrict]);
+  // 관련 지원 정보: 유형을 고르면 RES-02(제도만)로 첫 번째 제도를 보여 줌
+  const related = useResourceSearch(
+    careTerm ? { careTerm, neededDate: neededDate || undefined, district, kind: "PROGRAM" } : null,
+  );
+  const first = related.state.phase === "done" ? (related.state.data.results[0] ?? null) : null;
 
   const handleSearch = () => {
     const next: typeof errors = {};
@@ -104,27 +124,39 @@ export default function SupportFindPage() {
         </div>
 
         {/* 관련 지원 정보 (유형을 골라야 보임) */}
-        {related && (
+        {related.state.phase !== "idle" && (
           <section className="flex flex-col gap-3">
             <h2 className="text-subhead font-bold text-text-primary">관련 지원 정보</h2>
-            {related.first ? (
-              <div className="flex flex-col gap-2.5 rounded-card bg-sky-soft px-[18px] py-4">
-                <div className="flex">
-                  <Chip tone="sky">용인시 공공데이터</Chip>
-                </div>
-                <p className="text-[18px] font-bold leading-[1.35] text-text-primary">{related.first.name}</p>
-                {related.first.kind === "PROGRAM" && (
-                  <p className="text-[14px] leading-[1.5] text-text-secondary">{related.first.summary}</p>
-                )}
-                <Button variant="outline" onClick={() => router.push(`/support/${related.first!.resourceId}`)}>
-                  지원 정보 자세히 보기
-                </Button>
-              </div>
-            ) : (
-              <p className="rounded-card bg-bg-subtle px-[18px] py-4 text-body text-text-secondary">
-                이 조건에 맞는 지원 정보가 아직 없어요.
-              </p>
+            {related.state.phase === "loading" && (
+              <div className="h-[132px] animate-pulse rounded-card bg-bg-subtle" role="status" aria-label="불러오는 중이에요" />
             )}
+            {related.state.phase === "error" && (
+              <div className="flex flex-col items-start gap-2 rounded-card bg-pink-soft px-[18px] py-4">
+                <p className="text-body font-bold text-pink-strong">{getErrorMessage(related.state.error)}</p>
+                <button type="button" onClick={related.retry} className="text-caption font-bold text-pink-strong underline">
+                  다시 시도
+                </button>
+              </div>
+            )}
+            {related.state.phase === "done" &&
+              (first ? (
+                <div className="flex flex-col gap-2.5 rounded-card bg-sky-soft px-[18px] py-4">
+                  <div className="flex">
+                    <Chip tone="sky">용인시 공공데이터</Chip>
+                  </div>
+                  <p className="text-[18px] font-bold leading-[1.35] text-text-primary">{first.name}</p>
+                  {first.kind === "PROGRAM" && (
+                    <p className="text-[14px] leading-[1.5] text-text-secondary">{first.summary}</p>
+                  )}
+                  <Button variant="outline" onClick={() => router.push(`/support/${first.resourceId}`)}>
+                    지원 정보 자세히 보기
+                  </Button>
+                </div>
+              ) : (
+                <p className="rounded-card bg-bg-subtle px-[18px] py-4 text-body text-text-secondary">
+                  이 조건에 맞는 지원 정보가 아직 없어요.
+                </p>
+              ))}
           </section>
         )}
 
