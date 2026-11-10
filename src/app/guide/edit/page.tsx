@@ -2,8 +2,8 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Header, Button, Input, Select, EmptyState, LoadingState, ErrorState } from "@/components/common";
-import { PlusIcon, XIcon } from "@/components/icons/Icons";
+import { Header, Button, Input, Select, EmptyState, LoadingState, ErrorState, Modal } from "@/components/common";
+import { InfoIcon, PlusIcon, XIcon } from "@/components/icons/Icons";
 import {
   DISTRICT_LABEL,
   SECTION_LABEL,
@@ -45,6 +45,7 @@ const DISTRICT_OPTIONS = (Object.keys(DISTRICT_LABEL) as District[]).map((d) => 
 const SECTION_OPTIONS = SECTION_ORDER.map((s) => ({ value: s, label: SECTION_LABEL[s] }));
 
 const MAX_ENTRY = 500; // GUIDE-02·03 content 1~500자
+const GUIDE_SAVED_KEY = "guide-saved"; // 3.1 설명서 화면과 같은 값
 
 function initialDrafts(guide: GuideData): DraftEntry[] {
   return guide.sections.flatMap((s) =>
@@ -67,7 +68,7 @@ export default function GuideEditPage() {
     return (
       <main className="flex flex-col pb-[120px]">
         <Header title="돌봄 설명서 편집" back />
-        <LoadingState count={3} label="설명서를 불러오는 중이에요" />
+        <LoadingState count={3} label="정보를 불러오고 있어요." />
       </main>
     );
   }
@@ -75,7 +76,7 @@ export default function GuideEditPage() {
     return (
       <main className="flex flex-col pb-[120px]">
         <Header title="돌봄 설명서 편집" back />
-        <ErrorState message={getErrorMessage(state.error)} onRetry={retry} />
+        <ErrorState title="설명서를 불러오지 못했어요." description={getErrorMessage(state.error)} onRetry={retry} />
       </main>
     );
   }
@@ -101,8 +102,22 @@ function GuideEditForm({ guide, subject }: { guide: GuideData; subject: SubjectD
   const [errors, setErrors] = useState<{ name?: string; entries?: string }>({});
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [leaveOpen, setLeaveOpen] = useState(false);
 
   const visible = drafts.filter((d) => d.section === section && !d.deleted);
+
+  /** 처음 불러온 값에서 바뀐 게 있는지 (미저장 이탈 팝업용) */
+  const dirty =
+    name !== subject.name ||
+    birthYear !== String(subject.birthYear) ||
+    district !== subject.district ||
+    dong !== (subject.dong ?? "") ||
+    emergencyContact !== (subject.emergencyContact ?? "") ||
+    drafts.some(
+      (d) => d.deleted || (d.entryId === null ? d.content.trim() !== "" : d.content !== d.original),
+    );
+
+  const handleBack = () => (dirty ? setLeaveOpen(true) : router.back());
 
   const updateDraft = (key: string, content: string) =>
     setDrafts((prev) => prev.map((d) => (d.key === key ? { ...d, content } : d)));
@@ -167,6 +182,11 @@ function GuideEditForm({ guide, subject }: { guide: GuideData; subject: SubjectD
         await deleteGuideEntry(d.entryId!);
         setDrafts((prev) => prev.filter((x) => x.key !== d.key));
       }
+      try {
+        sessionStorage.setItem(GUIDE_SAVED_KEY, "1"); // 3.1에서 "돌봄 설명서가 수정됐어요." 안내
+      } catch {
+        // 저장소를 못 쓰면 안내만 생략
+      }
       router.push("/guide");
     } catch (e) {
       setSaveError(getErrorMessage(e));
@@ -190,7 +210,7 @@ function GuideEditForm({ guide, subject }: { guide: GuideData; subject: SubjectD
 
   return (
     <main className="flex flex-col pb-[120px]">
-      <Header title="돌봄 설명서 편집" subtitle="저장하면 설명서에 바로 반영돼요" back />
+      <Header title="돌봄 설명서 편집" subtitle="저장하면 설명서에 바로 반영돼요" back onBack={handleBack} />
 
       <div className="flex flex-col gap-6 px-6">
         {/* 대상자 정보 */}
@@ -253,7 +273,7 @@ function GuideEditForm({ guide, subject }: { guide: GuideData; subject: SubjectD
 
           {visible.length === 0 && (
             <p className="rounded-[16px] bg-bg-subtle px-4 py-3.5 text-body leading-[1.6] text-text-tertiary">
-              아직 작성된 내용이 없어요
+              아직 등록된 정보가 없어요.
             </p>
           )}
 
@@ -299,16 +319,33 @@ function GuideEditForm({ guide, subject }: { guide: GuideData; subject: SubjectD
           {errors.entries && <p className="text-caption text-pink-strong">{errors.entries}</p>}
         </section>
 
+        {/* 공개 안내 (확정안 3.2, 기존 디자인의 "공개 범위" 자리) */}
+        <p className="flex items-start gap-2 rounded-input bg-bg-subtle px-4 py-3 text-caption leading-[1.5] text-text-secondary">
+          <InfoIcon size={16} className="mt-0.5 shrink-0" />
+          공동 관리자는 설명서를 볼 수 있으며, 외부 공유 시에는 공개할 정보를 직접 선택할 수 있어요.
+        </p>
+
         {saveError && (
-          <p role="alert" className="rounded-input bg-pink-soft px-4 py-3 text-caption font-bold text-pink-strong">
-            {saveError}
-          </p>
+          <div role="alert" className="flex flex-col gap-0.5 rounded-input bg-pink-soft px-4 py-3 text-pink-strong">
+            <p className="text-caption font-bold">수정 내용을 저장하지 못했어요.</p>
+            <p className="text-caption">{saveError}</p>
+          </div>
         )}
 
         <Button onClick={handleSave} disabled={saving}>
-          {saving ? "저장 중..." : "수정 내용 저장"}
+          {saving ? "내용을 저장하고 있어요." : "수정 내용 저장"}
         </Button>
       </div>
+
+      {/* 미저장 이탈 */}
+      <Modal
+        open={leaveOpen}
+        title="저장하지 않은 변경 사항이 있어요. 나가시겠어요?"
+        cancelLabel="취소"
+        confirmLabel="나가기"
+        onConfirm={() => router.back()}
+        onClose={() => setLeaveOpen(false)}
+      />
     </main>
   );
 }

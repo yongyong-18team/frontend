@@ -18,7 +18,7 @@ export default function InvitationsPage() {
     return (
       <main className="flex flex-col pb-[120px]">
         <Header title="받은 초대" back />
-        <LoadingState count={2} label="받은 초대를 불러오는 중이에요" />
+        <LoadingState count={2} label="정보를 불러오고 있어요." />
       </main>
     );
   }
@@ -89,7 +89,7 @@ function InvitationsView({ initial }: { initial: ReceivedInvitation[] }) {
       )}
 
       {!current ? (
-        <EmptyState icon={<MailIcon size={44} />} title="받은 초대가 없어요" />
+        <EmptyState icon={<MailIcon size={44} />} title="아직 받은 초대가 없어요." />
       ) : (
         <div className="flex flex-col gap-6 px-6">
           {/* 초대 카드 */}

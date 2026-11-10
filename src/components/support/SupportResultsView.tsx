@@ -53,6 +53,10 @@ export default function SupportResultsView({ careTerm, neededDate, initialDistri
   const shownDistrict = district ?? data?.condition.district ?? "";
   const count = data?.results.length ?? 0;
 
+  /** 단기 돌봄인데 확인된 시설이 없으면: 시설을 대신 추천하지 않고 제도·문의처를 안내 (확정안 5.2) */
+  const noShortFacility =
+    careTerm === "SHORT" && kind !== "PROGRAM" && !!data && !data.results.some((r) => r.kind === "FACILITY");
+
   return (
     <main className="flex flex-col pb-[120px]">
       <Header title="공공 돌봄 지원 찾기" subtitle="용인시의 지원 정보를 찾아볼 수 있어요" back />
@@ -72,7 +76,9 @@ export default function SupportResultsView({ careTerm, neededDate, initialDistri
         {/* 관련 지원 정보 */}
         <section className="flex flex-col gap-3">
           <div className="flex items-center gap-2">
-            <h2 className="min-w-0 flex-1 text-subhead font-bold text-text-primary">관련 지원 정보</h2>
+            <h2 className="min-w-0 flex-1 text-subhead font-bold text-text-primary">
+              {noShortFacility && count > 0 ? "관련 지원 제도·문의처" : "관련 지원 정보"}
+            </h2>
             {data && <Chip tone={count > 0 ? "primary" : "pink"}>{count}건</Chip>}
           </div>
 
@@ -104,7 +110,17 @@ export default function SupportResultsView({ careTerm, neededDate, initialDistri
             </div>
           )}
 
-          {state.phase === "error" && <ErrorState message={getErrorMessage(state.error)} onRetry={retry} />}
+          {state.phase === "error" && (
+            <ErrorState title="지원 정보를 불러오지 못했어요." description={getErrorMessage(state.error)} onRetry={retry} />
+          )}
+
+          {/* 단기 돌봄 시설 없음 안내 */}
+          {noShortFacility && (
+            <div className="flex flex-col gap-1 rounded-card bg-peach-soft px-[18px] py-4">
+              <p className="text-body font-bold leading-[1.45] text-text-primary">현재 확인된 단기 돌봄 시설이 없어요.</p>
+              <p className="text-[14px] leading-[1.5] text-text-secondary">이용할 수 있는 지원 제도와 문의처를 안내해 드릴게요.</p>
+            </div>
+          )}
 
           {data && count > 0 && (
             <div className="flex flex-col divide-y divide-line-base rounded-card bg-bg-surface px-4 py-1">
@@ -132,7 +148,7 @@ export default function SupportResultsView({ careTerm, neededDate, initialDistri
         </section>
 
         {/* 5.2 [예외] 검색 결과 없음 */}
-        {data && count === 0 && (
+        {data && count === 0 && !noShortFacility && (
           <div className="flex flex-col gap-6">
             <EmptyState
               icon={<SearchIcon size={44} />}

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Button, EmptyState, LoadingState, Modal } from "@/components/common";
+import { Header, Button, EmptyState, LoadingState, Modal } from "@/components/common";
 import { CheckIcon, InfoIcon } from "@/components/icons/Icons";
 import { DOCUMENT_TYPE_LABEL } from "@/constants/labels";
 import { copyText } from "@/lib/clipboard";
@@ -42,6 +42,9 @@ export default function ShareDonePage() {
     setCopyFailed(!ok);
   };
 
+  /** 받는 분이 보는 화면을 새 탭으로 (이 화면은 그대로 남아 있음) */
+  const openShared = () => window.open(approve.shareUrl, "_blank", "noopener,noreferrer");
+
   const leave = (to: string) => {
     clearIssuedShare();
     router.push(to);
@@ -52,14 +55,16 @@ export default function ShareDonePage() {
 
   return (
     <main className="flex flex-col pb-[120px]">
+      <Header title="공유 링크 관리" back onBack={() => tryLeave("/guide")} />
+
       {/* 완료 안내 */}
-      <section className="flex flex-col items-center gap-3 px-6 pb-6 pt-10 text-center">
+      <section className="flex flex-col items-center gap-3 px-6 pb-6 pt-2 text-center">
         <span className="flex h-[72px] w-[72px] items-center justify-center rounded-full bg-primary-soft text-primary-strong">
           <CheckIcon size={32} />
         </span>
         <div className="flex flex-col gap-1">
-          <h1 className="text-title font-bold text-text-primary">공유 링크를 만들었어요</h1>
-          <p className="text-body leading-[1.45] text-text-secondary">받는 분에게 링크를 보내 주세요</p>
+          <h2 className="text-title font-bold text-text-primary">공유 링크가 생성됐어요.</h2>
+          <p className="text-body leading-[1.45] text-text-secondary">이전에 선택한 정보만 포함된 문서예요.</p>
         </div>
       </section>
 
@@ -69,23 +74,29 @@ export default function ShareDonePage() {
           <p className="select-all break-all rounded-input bg-bg-subtle px-4 py-3 text-body font-medium leading-[1.5] text-text-primary">
             {approve.shareUrl}
           </p>
-          <Button onClick={handleCopy}>{copied ? "복사했어요 ✓" : "링크 복사"}</Button>
+          <Button onClick={handleCopy}>링크 복사</Button>
+          {copied && (
+            <p role="status" className="flex items-center gap-1.5 text-caption font-bold text-mint-strong">
+              <CheckIcon size={14} className="shrink-0" />
+              링크가 복사됐어요.
+            </p>
+          )}
           {copyFailed && (
             <p className="text-caption text-pink-strong">복사하지 못했어요. 위 링크를 길게 눌러 직접 복사해 주세요.</p>
           )}
         </section>
 
-        {/* API notice 그대로 */}
+        {/* 복사 안내 (확정안 문구) */}
         <p className="flex items-center gap-2 rounded-[12px] bg-peach-soft px-3.5 py-2.5 text-[14px] font-bold leading-[1.45] text-peach-strong">
           <InfoIcon size={16} className="shrink-0" />
-          {approve.notice}
+          이 화면을 나가면 링크를 다시 복사할 수 없어요.
         </p>
 
         {/* 문서 정보 */}
         <section className="flex flex-col gap-2.5 rounded-card bg-bg-surface px-4 py-3.5">
           <h2 className="text-body font-bold text-text-primary">문서 정보</h2>
-          <dl className="grid grid-cols-[72px_1fr] gap-x-3 gap-y-2 text-body leading-[1.45]">
-            <dt className="text-text-secondary">문서</dt>
+          <dl className="grid grid-cols-[96px_1fr] gap-x-3 gap-y-2 text-body leading-[1.45]">
+            <dt className="text-text-secondary">문서 유형</dt>
             <dd className="text-text-primary">{DOCUMENT_TYPE_LABEL[approve.documentType]}</dd>
             {recipientLabel && (
               <>
@@ -93,10 +104,10 @@ export default function ShareDonePage() {
                 <dd className="text-text-primary">{recipientLabel}</dd>
               </>
             )}
-            <dt className="text-text-secondary">만든 날</dt>
-            <dd className="text-text-primary">{formatDateTime(approve.approvedAt)}</dd>
-            <dt className="text-text-secondary">열람 기한</dt>
-            <dd className="text-text-primary">{formatDateTime(approve.expiresAt)}까지</dd>
+            <dt className="text-text-secondary">생성일</dt>
+            <dd className="text-text-primary">{formatDateTime(approve.approvedAt)}에 생성됨</dd>
+            <dt className="text-text-secondary">링크 유효기간</dt>
+            <dd className="text-text-primary">{formatDateTime(approve.expiresAt)}까지 열람 가능</dd>
           </dl>
         </section>
 
@@ -104,7 +115,7 @@ export default function ShareDonePage() {
           <Button variant="outline" onClick={() => tryLeave("/share/history")}>
             공유 내역 보기
           </Button>
-          <Button onClick={() => tryLeave("/guide")}>설명서로 돌아가기</Button>
+          <Button onClick={openShared}>공유된 문서 확인</Button>
         </div>
       </div>
 
@@ -112,7 +123,7 @@ export default function ShareDonePage() {
       <Modal
         open={leaveTo !== null}
         title="링크를 복사하지 않았어요"
-        message="이 화면을 나가면 링크를 다시 볼 수 없어요."
+        message="이 화면을 나가면 링크를 다시 복사할 수 없어요."
         cancelLabel="머무르기"
         confirmLabel="나가기"
         onClose={() => setLeaveTo(null)}

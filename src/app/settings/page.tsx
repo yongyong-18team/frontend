@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Header,
@@ -28,6 +28,7 @@ import { copyText } from "@/lib/clipboard";
 
 /** 공동 관리자 권한은 고정 (표시용) */
 const CO_PERMISSIONS = "조회·공유·지원";
+const INVITE_SENT_KEY = "invite-sent"; // 6.2 초대 화면과 같은 값
 
 /** 6.1 마이페이지 (USER-01, MEMBER-02, INVITE-02·03, USER-03) */
 export default function SettingsPage() {
@@ -37,7 +38,7 @@ export default function SettingsPage() {
     return (
       <main className="flex flex-col pb-[120px]">
         <Header title="마이페이지" />
-        <LoadingState count={3} label="내 정보를 불러오는 중이에요" />
+        <LoadingState count={3} label="정보를 불러오고 있어요." />
       </main>
     );
   }
@@ -72,6 +73,20 @@ function MyPageView({
   const [cancelTarget, setCancelTarget] = useState<SentInvitation | null>(null);
   const [accountOpen, setAccountOpen] = useState(false);
   const [withdrawOpen, setWithdrawOpen] = useState(false);
+  const [logoutOpen, setLogoutOpen] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  // 6.2에서 초대를 보내고 넘어왔으면 한 번 안내
+  useEffect(() => {
+    try {
+      if (sessionStorage.getItem(INVITE_SENT_KEY)) {
+        sessionStorage.removeItem(INVITE_SENT_KEY);
+        setNotice("초대를 보냈어요. 상대방의 수락을 기다려 주세요.");
+      }
+    } catch {
+      // 저장소를 못 쓰면 안내만 생략
+    }
+  }, []);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -87,9 +102,11 @@ function MyPageView({
     if (!cancelTarget) return;
     setBusy(true);
     setError(null);
+    setNotice(null);
     try {
       await cancelInvitation(cancelTarget.invitationId);
       setPending((prev) => prev.filter((i) => i.invitationId !== cancelTarget.invitationId));
+      setNotice("초대를 취소했어요.");
     } catch (e) {
       setError(getErrorMessage(e));
     } finally {
@@ -100,7 +117,7 @@ function MyPageView({
 
   const handleLogout = () => {
     clearSession(); // 토큰·대상자 ID 삭제 (서버 호출 없음)
-    setAccountOpen(false);
+    setLogoutOpen(false);
     router.replace("/login");
   };
 
@@ -129,6 +146,11 @@ function MyPageView({
         {error && (
           <p role="alert" className="rounded-input bg-pink-soft px-4 py-3 text-caption font-bold text-pink-strong">
             {error}
+          </p>
+        )}
+        {notice && (
+          <p role="status" className="rounded-input bg-mint-soft px-4 py-3 text-caption font-bold text-mint-strong">
+            {notice}
           </p>
         )}
 
@@ -165,7 +187,7 @@ function MyPageView({
               <p className="text-caption text-text-tertiary">승인된 가족 계정</p>
             </div>
             <div className="flex flex-col divide-y divide-line-base rounded-card bg-bg-surface px-4 py-1">
-              {empty && <p className="py-3.5 text-body text-text-tertiary">아직 공동 관리자가 없어요</p>}
+              {empty && <p className="py-3.5 text-body text-text-tertiary">아직 공동 관리자가 없어요.</p>}
 
               {coManagers.map((m) => (
                 <div key={m.userId} className="flex items-center gap-3 py-3.5">
@@ -271,7 +293,7 @@ function MyPageView({
         title="초대를 취소할까요?"
         message={cancelTarget ? `${cancelTarget.inviteeLoginId}님에게 보낸 초대가 취소돼요.` : undefined}
         confirmLabel="초대 취소"
-        cancelLabel="닫기"
+        cancelLabel="취소"
         tone="danger"
         loading={busy}
         onConfirm={handleCancelInvite}
@@ -281,7 +303,13 @@ function MyPageView({
       {/* 계정 및 개인정보: 로그아웃 / 탈퇴 */}
       <BottomSheet open={accountOpen} title="계정 및 개인정보" onClose={() => setAccountOpen(false)}>
         <div className="flex flex-col gap-3">
-          <Button variant="outline" onClick={handleLogout}>
+          <Button
+            variant="outline"
+            onClick={() => {
+              setAccountOpen(false);
+              setLogoutOpen(true);
+            }}
+          >
             로그아웃
           </Button>
           <button
@@ -297,13 +325,29 @@ function MyPageView({
         </div>
       </BottomSheet>
 
+      {/* 로그아웃 확인 */}
+      <Modal
+        open={logoutOpen}
+        title="로그아웃하시겠어요?"
+        confirmLabel="로그아웃"
+        cancelLabel="취소"
+        onConfirm={handleLogout}
+        onClose={() => setLogoutOpen(false)}
+      />
+
       {/* 탈퇴 확인 (USER-03) */}
       <Modal
         open={withdrawOpen}
-        title="정말 탈퇴할까요?"
-        message="탈퇴하면 계정을 되돌릴 수 없어요."
+        title="회원 탈퇴를 진행할까요?"
+        message={
+          <>
+            탈퇴 시 등록한 돌봄 정보가 삭제되며,
+            <br />
+            삭제된 정보는 복구할 수 없어요.
+          </>
+        }
         confirmLabel="탈퇴하기"
-        cancelLabel="닫기"
+        cancelLabel="취소"
         tone="danger"
         loading={busy}
         onConfirm={handleWithdraw}
