@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Header, Button, Chip, EmptyState, ErrorState, ListRow, Select } from "@/components/common";
 import { BuildingIcon, ChatIcon, InfoIcon, SearchIcon } from "@/components/icons/Icons";
 import { DISTRICT_LABEL, type District } from "@/constants/labels";
-import { useResourceSearch } from "@/hooks/useSupport";
+import { useResourceSearch, useSubjectForSupport } from "@/hooks/useSupport";
 import { getErrorMessage } from "@/lib/api/client";
 import type { CareTerm, ResourceKind, ResourceResult } from "@/lib/api/resource";
 
@@ -50,8 +50,14 @@ export default function SupportResultsView({ careTerm, neededDate, initialDistri
   });
 
   const data = state.phase === "done" ? state.data : null;
-  const shownDistrict = district ?? data?.condition.district ?? "";
-  const count = data?.results.length ?? 0;
+  // 지역을 안 정하고 오면: 응답의 condition.district → 없으면 대상자 등록 지역(SUBJ-02)으로 표시
+  const subject = useSubjectForSupport().state;
+  const registered = subject.phase === "done" ? subject.data.district : null;
+  const shownDistrict = district ?? data?.condition.district ?? registered ?? "";
+  const districtLoading = !shownDistrict && (state.phase === "loading" || subject.phase === "loading");
+  // 서버가 kind를 무시하고 섞어 보내도 화면에서 한 번 더 거름
+  const results = (data?.results ?? []).filter((r) => !kind || r.kind === kind);
+  const count = results.length;
 
   /** 단기 돌봄인데 확인된 시설이 없으면: 시설을 대신 추천하지 않고 제도·문의처를 안내 (확정안 5.2) */
   const noShortFacility =
@@ -67,7 +73,7 @@ export default function SupportResultsView({ careTerm, neededDate, initialDistri
           label="지역"
           required
           value={shownDistrict}
-          placeholder="지역을 불러오는 중이에요"
+          placeholder={districtLoading ? "지역을 불러오는 중이에요" : "지역 선택"}
           options={DISTRICT_OPTIONS}
           formatSelected={(o) => `용인시 ${o.label}`}
           onChange={(v) => setDistrict(v as District)}
@@ -124,7 +130,7 @@ export default function SupportResultsView({ careTerm, neededDate, initialDistri
 
           {data && count > 0 && (
             <div className="flex flex-col divide-y divide-line-base rounded-card bg-bg-surface px-4 py-1">
-              {data.results.map((r) => {
+              {results.map((r) => {
                 const k = KIND_STYLE[r.kind];
                 return (
                   <ListRow
