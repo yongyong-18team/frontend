@@ -77,7 +77,9 @@ export default function SignupForm() {
       await signup(credentials);
       const res = await login(credentials);
       saveLogin(res);
-      router.replace(pathAfterLogin(res));
+      // 온보딩으로 갈 때 "회원가입이 완료됐어요." 안내를 띄우도록 표시 (기획 문구 확정안 v1.4)
+      const path = pathAfterLogin(res);
+      router.replace(path.startsWith('/onboarding') ? `${path}?joined=1` : path);
     } catch (err) {
       if (err instanceof ApiError && err.code === 'AUTH_DUPLICATE_LOGIN_ID') {
         setIdCheck('taken');

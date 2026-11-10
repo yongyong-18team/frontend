@@ -23,6 +23,10 @@ type Props<T extends string | number> = {
   /** 아무것도 안 골랐을 때 목록을 처음 열면 이 값 근처를 보여줌 (예: 연도 1970) */
   scrollHint?: T;
   disabled?: boolean;
+  /** 칸 아래 빨간 안내 (예: "보호자 관계를 선택해 주세요.") */
+  error?: string | null;
+  /** 목록이 닫힐 때 (고르지 않고 닫았는지 확인해서 error를 띄울 때 사용) */
+  onClose?: () => void;
 };
 
 export default function SelectField<T extends string | number>({
@@ -34,6 +38,8 @@ export default function SelectField<T extends string | number>({
   onChange,
   scrollHint,
   disabled,
+  error,
+  onClose,
 }: Props<T>) {
   const id = useId();
   const [open, setOpen] = useState(false);
@@ -43,11 +49,24 @@ export default function SelectField<T extends string | number>({
 
   const selected = options.find((o) => o.value === value) ?? null;
 
+  // 바깥 클릭 처리(effect)에서도 최신 onClose를 부르도록 ref에 보관
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  });
+  const close = () => {
+    setOpen(false);
+    onCloseRef.current?.();
+  };
+
   // 바깥을 누르면 닫기
   useEffect(() => {
     if (!open) return;
     const handle = (e: PointerEvent) => {
-      if (!rootRef.current?.contains(e.target as Node)) setOpen(false);
+      if (!rootRef.current?.contains(e.target as Node)) {
+        setOpen(false);
+        onCloseRef.current?.();
+      }
     };
     document.addEventListener('pointerdown', handle);
     return () => document.removeEventListener('pointerdown', handle);
@@ -81,7 +100,7 @@ export default function SelectField<T extends string | number>({
 
   const choose = (option: SelectOption<T>) => {
     onChange(option.value);
-    setOpen(false);
+    close();
   };
 
   const handleKeyDown = (e: KeyboardEvent) => {
@@ -94,7 +113,7 @@ export default function SelectField<T extends string | number>({
     }
     if (e.key === 'Escape') {
       e.preventDefault();
-      setOpen(false);
+      close();
     } else if (e.key === 'ArrowDown') {
       e.preventDefault();
       setActiveIndex((i) => Math.min(options.length - 1, i + 1));
@@ -106,7 +125,7 @@ export default function SelectField<T extends string | number>({
       const option = options[activeIndex];
       if (option) choose(option);
     } else if (e.key === 'Tab') {
-      setOpen(false);
+      close();
     }
   };
 
@@ -130,10 +149,14 @@ export default function SelectField<T extends string | number>({
           aria-label={label ? undefined : ariaLabel}
           aria-activedescendant={open && activeIndex >= 0 ? `${id}-opt-${activeIndex}` : undefined}
           disabled={disabled}
-          onClick={() => (open ? setOpen(false) : openList())}
+          onClick={() => (open ? close() : openList())}
           onKeyDown={handleKeyDown}
           className={`flex h-14 w-full items-center gap-2 rounded-input border bg-bg-surface pr-3.5 pl-[18px] text-left transition-colors disabled:opacity-50 ${
-            open ? 'border-primary-strong ring-[0.5px] ring-primary-strong' : 'border-line-strong'
+            open
+              ? 'border-primary-strong ring-[0.5px] ring-primary-strong'
+              : error
+                ? 'border-pink-strong ring-[0.5px] ring-pink-strong'
+                : 'border-line-strong'
           }`}
         >
           <span id={`${id}-value`} className={`min-w-0 flex-1 truncate text-body-lg ${selected ? 'text-text-primary' : 'text-text-tertiary'}`}>
@@ -172,6 +195,11 @@ export default function SelectField<T extends string | number>({
           </ul>
         )}
       </div>
+      {error && !open && (
+        <p role="alert" className="text-caption leading-[1.45] font-medium text-pink-strong">
+          {error}
+        </p>
+      )}
     </div>
   );
 }

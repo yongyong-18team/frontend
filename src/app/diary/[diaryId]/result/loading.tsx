@@ -5,7 +5,7 @@ export default function Loading() {
   return (
     <main className="flex min-h-dvh items-center justify-center bg-bg-base">
       <p className="text-body text-text-secondary" role="status">
-        불러오는 중…
+        정보를 불러오고 있어요.
       </p>
     </main>
   );

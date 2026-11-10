@@ -49,7 +49,7 @@ export default function DiaryReview({ diaryId }: { diaryId: number }) {
     return (
       <DiaryPageShell title={TITLE} desc={DESC}>
         <div className="mt-3.5">
-          <LoadingState count={2} label="추출된 정보를 불러오는 중이에요" />
+          <LoadingState count={2} label="정보를 불러오고 있어요." />
         </div>
       </DiaryPageShell>
     );

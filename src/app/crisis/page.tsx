@@ -1,12 +1,15 @@
 // src/app/crisis/page.tsx
-// 5.5 위기 안전 안내 (Figma node 59:1913)
+// 5.5 위기 안전 안내 (Figma node 59:1913, 문구: 기획 문구 확정안 v1.4 5.5 / API 명세 SUP-02)
 //
-// - API 없이도 항상 즉시 떠야 하는 화면이라 데이터는 모두 이 파일 안에 둡니다.
+// - 서버가 늦거나 실패해도 바로 떠야 하는 화면이라, 고정 문구(CRISIS_FALLBACK)로 먼저 그리고
+//   SUP-02 응답이 오면 바꿔 끼웁니다. (자동 신고·외부 통보 없음)
+// - 1577-0199(정신건강 위기상담)는 Figma에 없지만 확정안·명세에 있어 추가했습니다. TODO(B 디자인): 카드 디자인 확인
 // - 주소에 params/searchParams가 없어서 loading.tsx는 필요 없습니다.
 // - 하단 탭은 디자인상 보이는 화면입니다 (B의 BottomNav가 담당).
 
 'use client';
 
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
@@ -20,6 +23,7 @@ import {
 import Button from '@/components/common/Button';
 import Chip from '@/components/common/Chip';
 import Header from '@/components/common/Header';
+import { CRISIS_FALLBACK, getCrisisGuide, type CrisisContact, type CrisisGuide } from '@/lib/api/crisis';
 
 // B의 Icons.tsx 아이콘을 이름으로 꺼내 쓰기 위한 연결 (색은 className의 text-...로 지정)
 const ICONS = {
@@ -37,38 +41,62 @@ function Icon({ name, size, className }: { name: IconName; size: number; classNa
   return <Svg size={size} className={`shrink-0 ${className ?? ''}`} />;
 }
 
-const EMERGENCY_LINES = [
-  { number: '119', chip: '긴급', tone: 'pink', desc: '응급 구조 · 긴급 상황 즉시 신고' },
-  { number: '112', chip: '긴급', tone: 'pink', desc: '경찰 · 위험 상황 신고' },
-  { number: '109', chip: '24시간', tone: 'sky', desc: '자살예방상담전화 · 전문 위기 상담' },
-] as const;
+/** 연락처 → 카드 모양. 119·112(note 있음)는 긴급(분홍)으로 먼저, 상담 전화(hours 있음)는 하늘색으로 뒤에 */
+function toLines(contacts: CrisisContact[]) {
+  return [...contacts]
+    .sort((a, b) => Number(Boolean(b.note)) - Number(Boolean(a.note)))
+    .map((c) => ({
+      number: c.phone,
+      chip: c.note ? '긴급' : (c.hours ?? '상담'),
+      tone: c.note ? ('pink' as const) : ('sky' as const),
+      desc: c.note ?? c.name,
+    }));
+}
 
-// 5.3 상세 /support/[resourceId] — ID는 API 명세 SUP-01·SUP-02 기준
-// (부모상담 지원 1101 = SUP-02 followUp, 가족휴식지원 1102)
-const SUPPORT_RESOURCES = [
-  {
+// 5.3 상세 /support/[resourceId] — 첫 줄은 SUP-02 followUp(부모상담 지원 1101), 둘째 줄은 가족휴식지원 1102 (SUP-01)
+function toResources(followUp: CrisisGuide['followUp']) {
+  const rest = {
     id: 1102,
     title: '가족휴식지원',
     desc: '보호자 휴식 지원',
-    icon: 'coffee',
+    icon: 'coffee' as const,
     iconBg: 'bg-peach-soft',
     iconColor: 'text-peach-strong',
-  },
-  {
-    id: 1101,
-    title: '부모상담 지원',
-    desc: '보호자 심리상담 연계',
-    icon: 'chat',
-    iconBg: 'bg-mint-soft',
-    iconColor: 'text-mint-strong',
-  },
-] as const;
-
-// TODO: 사용자 프로필의 저장된 지역으로 교체 (constants/labels.ts의 DISTRICT_LABEL 사용)
-const SAVED_REGION_LABEL = '용인시 기흥구';
+  };
+  if (!followUp) return [rest];
+  return [
+    {
+      id: followUp.resourceId,
+      title: followUp.name,
+      desc: '보호자 심리상담 연계',
+      icon: 'chat' as const,
+      iconBg: 'bg-mint-soft',
+      iconColor: 'text-mint-strong',
+    },
+    ...(followUp.resourceId === rest.id ? [] : [rest]),
+  ];
+}
 
 export default function CrisisPage() {
   const router = useRouter();
+  // 고정 문구로 먼저 그리고, 서버 응답이 오면 교체 (실패해도 고정 문구 그대로)
+  const [guide, setGuide] = useState<CrisisGuide>(CRISIS_FALLBACK);
+
+  useEffect(() => {
+    let cancelled = false;
+    getCrisisGuide()
+      .then((data) => {
+        if (!cancelled && data.contacts.length > 0) setGuide(data);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const lines = toLines(guide.contacts);
+  const resources = toResources(guide.followUp);
+  const [headline, ...restMessage] = guide.message;
 
   return (
     // 위쪽 40px: 상태 표시줄 자리 (Figma 기준 뒤로가기 아이콘이 위에서 54px)
@@ -88,11 +116,9 @@ export default function CrisisPage() {
               <Icon name="shield" size={24} className="text-pink-strong" />
             </div>
             <div className="flex min-w-0 flex-1 flex-col gap-1">
-              <p className="text-body-lg leading-[1.4] font-bold text-text-primary">
-                지금 즉각적인 도움이 필요한가요?
-              </p>
+              <p className="text-body-lg leading-[1.4] font-bold text-text-primary">{headline}</p>
               <p className="text-[14px] leading-[1.5] text-text-secondary">
-                안전을 먼저 확보하고, 필요하면 아래 번호로 바로 연락하세요.
+                {restMessage.join(' ')}
               </p>
             </div>
           </section>
@@ -101,13 +127,13 @@ export default function CrisisPage() {
           <section className="flex flex-col gap-3">
             <h2 className="text-subhead font-bold text-text-primary">긴급 도움</h2>
             <ul className="flex flex-col gap-[10px]">
-              {EMERGENCY_LINES.map((line) => {
+              {lines.map((line) => {
                 const isPink = line.tone === 'pink';
                 return (
                   <li key={line.number}>
                     {/* 고령 사용자를 고려해 카드 전체를 전화 버튼으로 */}
                     <a
-                      href={`tel:${line.number}`}
+                      href={`tel:${line.number.replace(/[^0-9]/g, '')}`}
                       aria-label={`${line.number}에 전화하기, ${line.desc}`}
                       className="flex items-center gap-3 rounded-card bg-bg-surface px-4 py-[14px] active:opacity-80"
                     >
@@ -138,15 +164,17 @@ export default function CrisisPage() {
           <section className="flex flex-col gap-3">
             <div className="flex flex-col gap-[2px]">
               <h2 className="text-subhead font-bold text-text-primary">전문 기관 지원 안내</h2>
-              <p className="text-caption text-text-tertiary">
-                저장된 지역({SAVED_REGION_LABEL}) 기준으로 안내해요
-              </p>
+              {guide.followUp && (
+                <p className="text-caption text-text-tertiary">
+                  조금 진정된 뒤에는 {guide.followUp.name}도 알아볼 수 있어요.
+                </p>
+              )}
             </div>
             <ul className="flex flex-col rounded-card bg-bg-surface px-4 py-1">
-              {SUPPORT_RESOURCES.map((item, i) => (
+              {resources.map((item, i) => (
                 <li
                   key={item.id}
-                  className={i < SUPPORT_RESOURCES.length - 1 ? 'border-b border-line-base' : ''}
+                  className={i < resources.length - 1 ? 'border-b border-line-base' : ''}
                 >
                   <Link
                     href={`/support/${item.id}`}

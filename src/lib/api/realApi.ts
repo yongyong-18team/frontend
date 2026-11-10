@@ -6,9 +6,7 @@
 //   전부 실제 서버로: NEXT_PUBLIC_REAL_API=all  /  전부 가짜: 비워 두기
 // 값을 바꾸면 npm run dev를 껐다 켜야 반영됩니다 (Vercel은 다시 배포).
 
-export type ApiGroup =
-  | 'auth' | 'terms' | 'onboarding' | 'home' | 'diary' | 'report' // 세훈
-  | 'guide' | 'share' | 'member' | 'resource'; // 윤아 (설명서 / 공유 / 설정 / 돌봄 지원)
+export type ApiGroup = 'auth' | 'terms' | 'onboarding' | 'home' | 'diary' | 'report' | 'crisis';
 
 const enabled = new Set(
   (process.env.NEXT_PUBLIC_REAL_API ?? '')

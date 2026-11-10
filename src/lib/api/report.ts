@@ -30,6 +30,11 @@ export type WeeklyReport = {
   keyChanges: KeyChange[];
   repeatedBehaviors: { label: string; count: number }[];
   timePattern: { timeSlot: TimeSlot; count: number }[];
+  /**
+   * "안정에 도움 된 방법" (기획 문구 확정안 v1.4 2.5) — 이 기간에 승인된 대처 방법(COPING), 많이 나온 순
+   * TODO(백엔드 C): REPORT-03 명세에 없는 필드. 추가 요청 중 (서버가 안 보내면 화면에서 섹션을 숨김)
+   */
+  copingMethods?: { content: string; count: number }[];
 };
 
 /** REPORT-03 주간 리포트: endDate 포함 최근 7일 (생략하면 오늘) */

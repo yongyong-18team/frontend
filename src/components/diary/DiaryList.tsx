@@ -125,7 +125,7 @@ export default function DiaryList() {
           )}
         </div>
 
-        {state.phase === 'loading' && <LoadingState count={3} label="기록을 불러오는 중이에요" />}
+        {state.phase === 'loading' && <LoadingState count={3} label="정보를 불러오고 있어요." />}
 
         {state.phase === 'error' && (
           <div className="mt-6">

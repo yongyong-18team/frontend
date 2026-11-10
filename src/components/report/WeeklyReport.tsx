@@ -47,7 +47,7 @@ export default function WeeklyReport({ endDate }: { endDate?: string }) {
     return (
       <DiaryPageShell title={TITLE} desc={periodLabel}>
         <div className="mt-2">
-          <LoadingState count={3} label="리포트를 불러오는 중이에요" />
+          <LoadingState count={3} label="정보를 불러오고 있어요." />
         </div>
       </DiaryPageShell>
     );
@@ -100,6 +100,8 @@ export default function WeeklyReport({ endDate }: { endDate?: string }) {
           <DailyBars trend={report.dailyTrend} />
         </section>
 
+        {report.copingMethods && <CopingMethods methods={report.copingMethods} />}
+
         <PatternAndChanges report={report} />
       </div>
 
@@ -107,6 +109,28 @@ export default function WeeklyReport({ endDate }: { endDate?: string }) {
         <Button onClick={() => router.push(shareHref)}>리포트 공유하기</Button>
       </div>
     </DiaryPageShell>
+  );
+}
+
+/** 안정에 도움 된 방법 (기획 문구 확정안 v1.4 2.5 "대응"). 많이 쓴 순서로 3개까지. TODO(B 디자인): Figma 없음, 임시 카드 */
+function CopingMethods({ methods }: { methods: { content: string; count: number }[] }) {
+  return (
+    <section className="flex flex-col gap-2.5 rounded-card bg-mint-soft px-[18px] py-4">
+      <h2 className="text-body leading-[1.45] font-bold text-text-primary">안정에 도움 된 방법</h2>
+      {methods.length === 0 ? (
+        <p className="text-[14px] leading-[1.45] text-text-secondary">이번 주에 기록된 대처 방법이 없어요.</p>
+      ) : (
+        <ul className="flex flex-col gap-2">
+          {methods.slice(0, 3).map((m) => (
+            <li key={m.content} className="flex items-start gap-2.5 text-body leading-[1.45] text-text-primary">
+              <span className="mt-[7px] size-2 shrink-0 rounded-full bg-mint-strong" aria-hidden />
+              <span className="min-w-0 flex-1">{m.content}</span>
+              {m.count > 1 && <span className="shrink-0 text-caption font-bold text-mint-strong">{m.count}번</span>}
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }
 

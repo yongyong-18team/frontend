@@ -14,6 +14,8 @@ import { ApiError, getErrorMessage, SESSION_EXPIRED_MESSAGE } from '@/lib/api/cl
 import { login, pathAfterLogin } from '@/lib/api/auth';
 import { saveLogin } from '@/lib/auth/session';
 
+const INVALID_CREDENTIALS_MESSAGE = '아이디 또는 비밀번호가 일치하지 않습니다.';
+
 const noop = () => () => {};
 /** 로그인이 만료돼서 온 경우(?expired=1) */
 const readExpired = () => new URLSearchParams(window.location.search).has('expired');
@@ -44,8 +46,9 @@ export default function LoginForm() {
       const next = new URLSearchParams(window.location.search).get('next');
       router.replace(pathAfterLogin(res, next));
     } catch (err) {
-      if (err instanceof ApiError && err.code === 'AUTH_INVALID_CREDENTIALS') {
-        setCredentialError(err.message);
+      // 아이디·비밀번호 불일치는 서버 문구 대신 기획 문구 확정안 v1.4 0.1 문구 (401 + 로그인 화면이라 이 코드로 판단)
+      if (err instanceof ApiError && (err.code === 'AUTH_INVALID_CREDENTIALS' || err.status === 401)) {
+        setCredentialError(INVALID_CREDENTIALS_MESSAGE);
       } else {
         setFormError(getErrorMessage(err));
       }

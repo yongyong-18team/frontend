@@ -5,7 +5,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useSyncExternalStore } from 'react';
 import { useRouter } from 'next/navigation';
 
 import Button from '@/components/common/Button';
@@ -19,18 +19,26 @@ import { RELATIONS } from '@/lib/api/onboarding';
 import { clearSession } from '@/lib/auth/session';
 import { clearDraft, isGuardianDone, updateDraft } from '@/lib/onboarding/draft';
 
+const noop = () => () => {};
+/** 회원가입 직후 온 경우 (SignupForm이 ?joined=1을 붙여 보냄) */
+const readJoined = () => new URLSearchParams(window.location.search).has('joined');
+
 export default function GuardianStep() {
   const router = useRouter();
   const { draft, ready } = useOnboardingGate(1);
   const [leaveOpen, setLeaveOpen] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [nameTouched, setNameTouched] = useState(false);
+  const [relationTouched, setRelationTouched] = useState(false);
+  const joined = useSyncExternalStore(noop, readJoined, () => false);
 
   if (!ready) return null;
 
   const { guardian } = draft;
   const done = isGuardianDone(draft);
   const nameMissing = nameTouched && guardian.displayName.trim().length === 0;
+  // 목록을 열었다가 고르지 않고 닫으면 (기획 문구 확정안 v1.4 0.2-1 "보호자 관계 미선택")
+  const relationMissing = relationTouched && guardian.relation === null;
   const setGuardian = (change: Partial<typeof guardian>) =>
     updateDraft((d) => ({ ...d, guardian: { ...d.guardian, ...change } }));
 
@@ -59,6 +67,12 @@ export default function GuardianStep() {
       }
     >
       <div className="flex flex-col gap-5">
+        {/* 회원가입 직후 한 번 (?joined=1). TODO(B): 공통 Toast가 생기면 교체 */}
+        {joined && (
+          <p role="status" className="rounded-card bg-mint-soft px-4 py-3 text-body font-medium text-mint-strong">
+            회원가입이 완료됐어요.
+          </p>
+        )}
         <ProfileAvatar tone="primary" onCameraClick={() => setNotice('프로필 사진 등록은 준비 중이에요.')} />
         {notice && (
           <p className="-mt-2 text-center text-caption text-text-secondary" role="status">
@@ -83,6 +97,8 @@ export default function GuardianStep() {
           options={RELATIONS}
           placeholder="선택해 주세요"
           onChange={(relation) => setGuardian({ relation })}
+          onClose={() => setRelationTouched(true)}
+          error={relationMissing ? '보호자 관계를 선택해 주세요.' : null}
         />
       </div>
 

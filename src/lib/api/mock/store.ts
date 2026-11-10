@@ -330,6 +330,7 @@ export function weeklyReport(endDate?: string): WeeklyReport {
       .map((i) => ({ diaryId: i.diaryId, diaryDate: i.diaryDate, section: i.section, content: i.content })),
     repeatedBehaviors,
     timePattern,
+    copingMethods: countBy(copings, (c) => c.content).map(([content, count]) => ({ content, count })),
   };
 }
 

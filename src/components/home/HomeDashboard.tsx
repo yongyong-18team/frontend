@@ -40,7 +40,7 @@ export default function HomeDashboard() {
 
   return (
     <main className="mx-auto min-h-dvh w-full max-w-[390px] bg-bg-base px-6 pt-6 pb-[108px]">
-      {state.phase === 'loading' && <LoadingState count={3} />}
+      {state.phase === 'loading' && <LoadingState count={3} label="정보를 불러오고 있어요." />}
       {state.phase === 'error' && !noSubject && <ErrorState message={homeErrorMessage(state.error)} onRetry={retry} />}
       {state.phase === 'done' && <Dashboard data={state.data} />}
     </main>
