@@ -8,7 +8,7 @@
 import { ApiError } from '@/lib/api/client';
 import type { Credentials, LoginResponse } from '@/lib/api/auth';
 import type { OnboardingRequest, OnboardingResponse, Term } from '@/lib/api/onboarding';
-import { getAccessToken, type SubjectSummary } from '@/lib/auth/session';
+import { getAccessToken, getSubjectId, type SubjectSummary } from '@/lib/auth/session';
 
 export const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -174,7 +174,22 @@ export const TERMS: Term[] = [
 
 /** 가짜 토큰 "mock.{userId}.{시간}"에서 사용자 찾기 */
 function currentUser(): MockUser {
-  const userId = Number(getAccessToken()?.split('.')[1]);
+  const token = getAccessToken();
+  // 실제 서버로 로그인한 상태(토큰이 mock.으로 시작하지 않음)에서 아직 가짜인 API(홈·기록 등)를 쓸 때:
+  // 이 세션의 대상자 ID로 임시 사용자를 만들어 가짜 화면이 계속 동작하게 함 (저장되지 않음)
+  if (token && !token.startsWith('mock.')) {
+    const subjectId = getSubjectId();
+    return {
+      userId: 0,
+      loginId: 'server-user',
+      password: '',
+      displayName: null,
+      relation: null,
+      subjects: subjectId ? [{ subjectId, name: '대상자', role: 'OWNER' }] : [],
+      pendingInvitationCount: 0,
+    };
+  }
+  const userId = Number(token?.split('.')[1]);
   const user = users().find((u) => u.userId === userId);
   if (!user) throw new ApiError(401, 'COMMON_UNAUTHORIZED', '다시 로그인해 주세요.');
   return user;

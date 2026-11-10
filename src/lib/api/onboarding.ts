@@ -1,13 +1,12 @@
 // src/lib/api/onboarding.ts
 // 온보딩 API (API 명세 2-2 백엔드 B, TERMS-01은 백엔드 A)
 //   - 0.2-1~0.2-3 입력은 화면이 들고 있다가 0.2-4 "등록 완료"에서 ONB-01 한 번으로 보냅니다 (중간 저장 API 없음)
-// 지금은 가짜 서버(mock/auth.ts)로 동작합니다. 백엔드 연결 시 "가짜 응답"만 실제 요청으로 바꾸면 됩니다.
+// NEXT_PUBLIC_REAL_API에 terms·onboarding이 있으면 실제 서버, 없으면 가짜 서버(mock/auth.ts) (realApi.ts 참고)
 
 import { api } from '@/lib/api/client';
 import type { Relation } from '@/lib/api/auth';
 import * as mock from '@/lib/api/mock/auth';
-
-void api;
+import { isReal } from '@/lib/api/realApi';
 
 /* ───────────── 선택지 ───────────── */
 
@@ -83,8 +82,10 @@ export type Term = {
 
 /** TERMS-01 (공개 API) */
 export async function getTerms(): Promise<Term[]> {
-  // const res = await api.get<{ terms: Term[] }>('/terms', { auth: false });
-  // return res.terms;
+  if (isReal('terms')) {
+    const res = await api.get<{ terms: Term[] }>('/terms', { auth: false });
+    return res.terms;
+  }
 
   // ── 가짜 응답 ──
   await mock.delay(300);
@@ -117,7 +118,7 @@ export type OnboardingResponse = { subjectId: number; createdGuideEntryCount: nu
  * 실패: SUBJECT_INVALID_NAME 400, SUBJECT_INVALID_BIRTH_YEAR 400, SUBJECT_CONSENT_REQUIRED 400, ONB_ALREADY_COMPLETED 409
  */
 export async function submitOnboarding(body: OnboardingRequest): Promise<OnboardingResponse> {
-  // return api.post<OnboardingResponse>('/onboarding', body);
+  if (isReal('onboarding')) return api.post<OnboardingResponse>('/onboarding', body);
 
   // ── 가짜 응답 ──
   await mock.delay(900);

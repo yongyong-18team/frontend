@@ -1,15 +1,14 @@
 // src/lib/api/auth.ts
 // 인증 API (API 명세 2-1, 백엔드 A) — 모두 로그인 없이 부르므로 { auth: false }
-// 지금은 가짜 계정(mock/auth.ts)으로 동작합니다. 백엔드 연결 시 "가짜 응답"만 실제 요청으로 바꾸면 됩니다.
+// NEXT_PUBLIC_REAL_API에 auth가 있으면 실제 서버, 없으면 가짜 계정(mock/auth.ts) (realApi.ts 참고)
 //
-// 개발용 계정: 아이디 demo1234 / 비밀번호 demo1234 (돌봄 대상자 있음 → 홈으로)
+// 가짜 서버 개발용 계정: 아이디 demo1234 / 비밀번호 demo1234 (돌봄 대상자 있음 → 홈으로)
 // 새로 가입한 계정은 대상자가 없어서 → 온보딩(0.2)으로
 
-import { api } from '@/lib/api/client';
+import { api, ApiError } from '@/lib/api/client';
 import type { LoginSessionData } from '@/lib/auth/session';
 import * as mock from '@/lib/api/mock/auth';
-
-void api;
+import { isReal } from '@/lib/api/realApi';
 
 export type Relation = 'PARENT' | 'OTHER';
 
@@ -38,7 +37,7 @@ export const isValidPassword = (value: string) => PASSWORD_RULE.test(value);
 
 /** AUTH-03 로그인. 실패: AUTH_INVALID_CREDENTIALS 401, AUTH_TOO_MANY_ATTEMPTS 429 */
 export async function login(body: Credentials): Promise<LoginResponse> {
-  // return api.post<LoginResponse>('/auth/login', body, { auth: false });
+  if (isReal('auth')) return api.post<LoginResponse>('/auth/login', body, { auth: false });
 
   // ── 가짜 응답 ──
   await mock.delay(600);
@@ -47,7 +46,7 @@ export async function login(body: Credentials): Promise<LoginResponse> {
 
 /** AUTH-01 회원가입. 실패: 형식 400, AUTH_DUPLICATE_LOGIN_ID 409 */
 export async function signup(body: Credentials): Promise<{ userId: number }> {
-  // return api.post<{ userId: number }>('/auth/signup', body, { auth: false });
+  if (isReal('auth')) return api.post<{ userId: number }>('/auth/signup', body, { auth: false });
 
   // ── 가짜 응답 ──
   await mock.delay(600);
@@ -56,10 +55,25 @@ export async function signup(body: Credentials): Promise<{ userId: number }> {
 
 /**
  * AUTH-02 아이디 중복 확인
- * TODO(백엔드 A): 응답 형식이 명세에 없음. { available: boolean } 으로 가정
+ * 실제 서버: 사용 가능하면 200 + data:null, 이미 있으면 오류(AUTH_DUPLICATE_LOGIN_ID, 409)로 보는 방식.
+ * 혹시 { available: boolean }을 보내도 그대로 쓰도록 둘 다 처리
+ * TODO(백엔드 A): 이미 있는 아이디일 때 응답(상태 코드·오류 코드) 확인
  */
 export async function checkLoginId(loginId: string): Promise<{ available: boolean }> {
-  // return api.get<{ available: boolean }>('/auth/login-id/check', { query: { loginId }, auth: false });
+  if (isReal('auth')) {
+    try {
+      const data = await api.get<{ available?: boolean } | null>('/auth/login-id/check', {
+        query: { loginId },
+        auth: false,
+      });
+      return { available: data?.available ?? true };
+    } catch (err) {
+      if (err instanceof ApiError && (err.code === 'AUTH_DUPLICATE_LOGIN_ID' || err.status === 409)) {
+        return { available: false };
+      }
+      throw err;
+    }
+  }
 
   // ── 가짜 응답 ──
   await mock.delay(400);
