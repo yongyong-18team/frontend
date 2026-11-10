@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Header, Chip, EmptyState, ErrorState, LoadingState, Modal } from "@/components/common";
-import { LockIcon } from "@/components/icons/Icons";
+import { CheckIcon, LockIcon } from "@/components/icons/Icons";
 import { DOCUMENT_TYPE_LABEL } from "@/constants/labels";
 import { useShareHistory } from "@/hooks/useShare";
 import { getErrorMessage } from "@/lib/api/client";
@@ -11,9 +11,9 @@ import { revokeShare, type ShareHistoryItem, type ShareStatus } from "@/lib/api/
 import { formatDate } from "@/lib/format";
 
 const STATUS: Record<Exclude<ShareStatus, "DRAFT">, { label: string; tone: "mint" | "neutral" | "pink" }> = {
-  ACTIVE: { label: "공유 중", tone: "mint" },
-  EXPIRED: { label: "만료", tone: "neutral" },
-  REVOKED: { label: "중지됨", tone: "pink" },
+  ACTIVE: { label: "이용 가능", tone: "mint" },
+  EXPIRED: { label: "기간 만료", tone: "neutral" },
+  REVOKED: { label: "접근 중지", tone: "pink" },
 };
 
 /** 4.3 공유 내역·접근 중지 (SHARE-04·05, Figma 디자인 없음 → 3.1·4.1 스타일) */
@@ -24,7 +24,7 @@ export default function ShareHistoryPage() {
     return (
       <main className="flex flex-col pb-[120px]">
         <Header title="공유 내역" back />
-        <LoadingState count={3} label="공유 내역을 불러오는 중이에요" />
+        <LoadingState count={3} label="정보를 불러오고 있어요." />
       </main>
     );
   }
@@ -46,17 +46,20 @@ function ShareHistoryList({ initial }: { initial: ShareHistoryItem[] }) {
   const [target, setTarget] = useState<ShareHistoryItem | null>(null);
   const [revoking, setRevoking] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [revokedNotice, setRevokedNotice] = useState(false);
 
   /** SHARE-05: 실패하면 서버 문구 (예: SHARE_ALREADY_INACTIVE, SHARE_FORBIDDEN) */
   const handleRevoke = async () => {
     if (!target) return;
     setRevoking(true);
     setError(null);
+    setRevokedNotice(false);
     try {
       await revokeShare(target.shareId);
       setItems((prev) =>
         prev.map((it) => (it.shareId === target.shareId ? { ...it, status: "REVOKED", revocable: false } : it)),
       );
+      setRevokedNotice(true);
     } catch (e) {
       setError(getErrorMessage(e));
     } finally {
@@ -71,6 +74,15 @@ function ShareHistoryList({ initial }: { initial: ShareHistoryItem[] }) {
 
       <div className="flex flex-col gap-6 px-6">
         {error && <p className="rounded-input bg-pink-soft px-4 py-3 text-body font-bold text-pink-strong">{error}</p>}
+        {revokedNotice && (
+          <p
+            role="status"
+            className="flex items-center gap-2 rounded-input bg-mint-soft px-4 py-3 text-caption font-bold text-mint-strong"
+          >
+            <CheckIcon size={16} className="shrink-0" />
+            링크 접근이 중지됐어요.
+          </p>
+        )}
 
         {items.length === 0 ? (
           <EmptyState
@@ -107,7 +119,7 @@ function ShareHistoryList({ initial }: { initial: ShareHistoryItem[] }) {
                       onClick={() => setTarget(it)}
                       className="mt-1 h-10 self-end rounded-input border-[1.5px] border-line-strong px-3.5 text-caption font-bold text-pink-strong active:opacity-70"
                     >
-                      접근 중지
+                      링크 접근 중지
                     </button>
                   )}
                 </li>
@@ -125,8 +137,9 @@ function ShareHistoryList({ initial }: { initial: ShareHistoryItem[] }) {
       <Modal
         open={target !== null}
         tone="danger"
-        title="이 링크의 접근을 중지할까요?"
-        message="중지하면 받은 분이 더 이상 볼 수 없어요. 다시 열 수 없어요."
+        title="이 공유 링크의 접근을 중지할까요?"
+        message="중지하면 링크를 받은 사람이 더 이상 문서를 볼 수 없어요."
+        cancelLabel="취소"
         confirmLabel="접근 중지"
         loading={revoking}
         onClose={() => setTarget(null)}

@@ -51,7 +51,7 @@ export default function ShareScopeView(props: Props) {
     return (
       <main className="flex flex-col pb-[120px]">
         <Header title="돌봄 기록 공유" back />
-        <LoadingState count={3} label="공유할 수 있는 정보를 불러오는 중이에요" />
+        <LoadingState count={3} label="정보를 불러오고 있어요." />
       </main>
     );
   }
@@ -138,7 +138,7 @@ function ShareScopeForm({
 
   const handlePreview = async () => {
     if (selected.length === 0) {
-      setError("공개할 항목을 하나 이상 선택해 주세요.");
+      setError("공유할 정보를 하나 이상 선택해 주세요.");
       return;
     }
     const request: ShareDraftRequest = {
@@ -207,7 +207,7 @@ function ShareScopeForm({
               />
             ))}
           </div>
-          {!hasAnyContent && <p className="text-caption text-pink-strong">공유할 수 있는 승인된 정보가 없어요.</p>}
+          {!hasAnyContent && <p className="text-caption text-pink-strong">공유할 수 있는 정보가 없어요.</p>}
           {error && <p className="text-caption text-pink-strong">{error}</p>}
         </section>
 
@@ -225,7 +225,7 @@ function ShareScopeForm({
         {/* 받는 사람 메모 (선택, 30자) */}
         <Input
           label="받는 사람 메모 (선택)"
-          placeholder="예) 목요일 선생님"
+          placeholder="예) 목요일 활동지원사"
           value={recipientLabel}
           maxLength={RECIPIENT_MAX}
           helper="공유 내역에서 누구에게 보냈는지 알아보기 쉬워요"

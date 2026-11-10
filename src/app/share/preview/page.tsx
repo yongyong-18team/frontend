@@ -71,7 +71,7 @@ export default function SharePreviewPage() {
 
   return (
     <main className="flex flex-col pb-[120px]">
-      <Header title="문서 미리보기" subtitle="받는 분에게 이렇게 보여요" back onBack={() => router.push(scopeUrl(request))} />
+      <Header title="문서 미리보기" subtitle="공유될 내용을 확인해 주세요." back onBack={() => router.push(scopeUrl(request))} />
 
       <div className="flex flex-col gap-6 px-6">
         {/* 공유 정보 */}
@@ -82,7 +82,7 @@ export default function SharePreviewPage() {
               <span className="text-body font-bold text-text-primary">받는 사람: {request.recipientLabel}</span>
             )}
           </div>
-          <p className="text-caption text-text-secondary">링크는 만든 뒤 {response.validDays}일 동안 열려요</p>
+          <p className="text-caption text-text-secondary">생성된 공유 링크는 {response.validDays}일 동안 이용할 수 있어요.</p>
         </section>
 
         {/* 문서 (받는 분이 보는 모양 그대로) */}
@@ -100,7 +100,8 @@ export default function SharePreviewPage() {
 
         {error && (
           <div className="flex flex-col gap-2 rounded-input bg-pink-soft px-4 py-3">
-            <p className="text-body font-bold text-pink-strong">{error.message}</p>
+            <p className="text-body font-bold text-pink-strong">공유 링크를 만들지 못했어요. 다시 시도해 주세요.</p>
+            <p className="text-caption text-pink-strong">{error.message}</p>
             {error.code === "SHARE_NOT_FOUND" && (
               <button
                 type="button"
@@ -118,7 +119,7 @@ export default function SharePreviewPage() {
             이전
           </Button>
           <Button onClick={handleCreateLink} disabled={submitting}>
-            {submitting ? "만드는 중..." : "공유 링크 만들기"}
+            {submitting ? "공유 링크를 만들고 있어요." : "공유 링크 생성"}
           </Button>
         </div>
       </div>

@@ -25,7 +25,7 @@ export default function SupportFindPage() {
     return (
       <main className="flex flex-col pb-[120px]">
         <Header title="내 상황에 맞는 돌봄 지원 찾기" back />
-        <LoadingState count={2} />
+        <LoadingState count={2} label="정보를 불러오고 있어요." />
       </main>
     );
   }
@@ -57,7 +57,7 @@ function SupportFindForm({ registeredDistrict }: { registeredDistrict: District 
   const handleSearch = () => {
     const next: typeof errors = {};
     if (!careTerm) next.careTerm = "어떤 도움이 필요한지 골라 주세요.";
-    if (!neededDate) next.neededDate = "필요한 날짜를 선택해 주세요.";
+    if (!neededDate) next.neededDate = "필요한 날짜와 지역을 확인해 주세요.";
     setErrors(next);
     if (!careTerm || !neededDate) return;
 
@@ -132,7 +132,8 @@ function SupportFindForm({ registeredDistrict }: { registeredDistrict: District 
             )}
             {related.state.phase === "error" && (
               <div className="flex flex-col items-start gap-2 rounded-card bg-pink-soft px-[18px] py-4">
-                <p className="text-body font-bold text-pink-strong">{getErrorMessage(related.state.error)}</p>
+                <p className="text-body font-bold text-pink-strong">지원 정보를 불러오지 못했어요. 다시 시도해 주세요.</p>
+                <p className="text-caption text-pink-strong">{getErrorMessage(related.state.error)}</p>
                 <button type="button" onClick={related.retry} className="text-caption font-bold text-pink-strong underline">
                   다시 시도
                 </button>
@@ -162,7 +163,7 @@ function SupportFindForm({ registeredDistrict }: { registeredDistrict: District 
 
         <p className="flex items-start gap-1.5 text-caption font-medium leading-[1.45] text-text-tertiary">
           <InfoIcon size={16} className="shrink-0" />
-          실제 이용 가능 여부와 정원은 제공기관에 확인이 필요해요
+          실제 이용 가능 여부와 정원은 제공기관에 확인이 필요해요.
         </p>
 
         <Button onClick={handleSearch}>관련 지원 찾아보기</Button>

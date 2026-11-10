@@ -15,6 +15,7 @@ import {
 
 /** 공동 관리자 권한은 고정 (표시용) */
 const CO_PERMISSIONS = "조회·공유·지원";
+const FAILED = "요청을 처리하지 못했어요. 다시 시도해 주세요.";
 
 /** 작은 버튼 (Figma: 좌우 12·상하 7, 13 Bold) */
 const SMALL_BTN = "shrink-0 rounded-full border bg-bg-surface px-3 py-[7px] text-caption font-bold leading-[1.4] active:opacity-70";
@@ -27,7 +28,7 @@ export default function MembersPage() {
     return (
       <main className="flex flex-col pb-[120px]">
         <Header title="공동 관리자 관리" back />
-        <LoadingState count={2} label="공동 관리자를 불러오는 중이에요" />
+        <LoadingState count={2} label="정보를 불러오고 있어요." />
       </main>
     );
   }
@@ -74,7 +75,7 @@ function MembersView({
       setMembers((prev) => prev.filter((m) => m.userId !== removeTarget.userId));
       setNotice({ tone: "ok", text: n > 0 ? `해제했어요. 공유 링크 ${n}개도 함께 막혔어요.` : "해제했어요." });
     } catch (e) {
-      setNotice({ tone: "error", text: getErrorMessage(e) });
+      setNotice({ tone: "error", text: `${FAILED}\n${getErrorMessage(e)}` });
     } finally {
       setBusy(false);
       setRemoveTarget(null);
@@ -90,7 +91,7 @@ function MembersView({
       setPending((prev) => prev.filter((i) => i.invitationId !== cancelTarget.invitationId));
       setNotice({ tone: "ok", text: "초대를 취소했어요." });
     } catch (e) {
-      setNotice({ tone: "error", text: getErrorMessage(e) });
+      setNotice({ tone: "error", text: `${FAILED}\n${getErrorMessage(e)}` });
     } finally {
       setBusy(false);
       setCancelTarget(null);
@@ -101,13 +102,13 @@ function MembersView({
 
   return (
     <main className="flex flex-col pb-[120px]">
-      <Header title="공동 관리자 관리" subtitle="권한을 확인하고 필요하면 해제할 수 있어요" back />
+      <Header title="공동 관리자 관리" subtitle="권한을 확인하고 필요하면 해제할 수 있어요." back />
 
       <div className="flex flex-col gap-6 px-6">
         {notice && (
           <p
             role={notice.tone === "error" ? "alert" : "status"}
-            className={`rounded-input px-4 py-3 text-caption font-bold ${
+            className={`whitespace-pre-line rounded-input px-4 py-3 text-caption font-bold ${
               notice.tone === "error" ? "bg-pink-soft text-pink-strong" : "bg-mint-soft text-mint-strong"
             }`}
           >
@@ -119,7 +120,7 @@ function MembersView({
         <section className="flex flex-col gap-3">
           <h2 className="text-subhead font-bold text-text-primary">공동 관리자 목록</h2>
           <div className="flex flex-col divide-y divide-line-base rounded-card bg-bg-surface px-4 py-1">
-            {empty && <p className="py-3.5 text-body text-text-tertiary">아직 공동 관리자가 없어요</p>}
+            {empty && <p className="py-3.5 text-body text-text-tertiary">아직 공동 관리자가 없어요.</p>}
 
             {members.map((m) => (
               <div key={m.userId} className="flex items-center gap-3 py-3.5">
@@ -181,7 +182,7 @@ function MembersView({
         </p>
 
         <Button variant="soft" onClick={() => router.push("/settings/invite")}>
-          + 공동 관리자 초대
+          공동 관리자 초대
         </Button>
       </div>
 
@@ -195,8 +196,6 @@ function MembersView({
             해제하면 돌봄 정보를 더 이상 볼 수 없어요.
             <br />
             언제든 다시 초대할 수 있어요.
-            <br />
-            이분이 만든 공유 링크도 함께 막혀요.
           </>
         }
         confirmLabel="해제"
@@ -213,7 +212,7 @@ function MembersView({
         title="초대를 취소할까요?"
         message={cancelTarget ? `${cancelTarget.inviteeLoginId}님에게 보낸 초대가 취소돼요.` : undefined}
         confirmLabel="초대 취소"
-        cancelLabel="닫기"
+        cancelLabel="취소"
         tone="danger"
         loading={busy}
         onConfirm={handleCancelInvite}

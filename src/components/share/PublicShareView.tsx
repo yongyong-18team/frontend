@@ -6,22 +6,22 @@ import { LoadingState } from "@/components/common";
 import { AlertIcon, InfoIcon, LockIcon } from "@/components/icons/Icons";
 import SharedDocument from "@/components/share/SharedDocument";
 import { usePublicShare } from "@/hooks/useShare";
-import { ApiError, getErrorMessage } from "@/lib/api/client";
+import { ApiError } from "@/lib/api/client";
 import { formatDate, formatDateTime } from "@/lib/format";
 
 /** 오류별 화면 (설명은 API error.message 그대로) */
 const ERROR_VIEW: Record<string, { title: string; icon: ReactNode; tone: string; extra?: string }> = {
-  SHARE_EXPIRED: { title: "열람 기한이 지났어요", icon: <AlertIcon size={40} />, tone: "bg-peach-soft text-peach-strong" },
-  SHARE_REVOKED: { title: "볼 수 없는 링크예요", icon: <LockIcon size={40} />, tone: "bg-pink-soft text-pink-strong" },
+  SHARE_EXPIRED: { title: "유효기간이 지난 링크예요.", icon: <AlertIcon size={40} />, tone: "bg-peach-soft text-peach-strong" },
+  SHARE_REVOKED: { title: "공유가 중지된 링크예요.", icon: <LockIcon size={40} />, tone: "bg-pink-soft text-pink-strong" },
   SHARE_NOT_FOUND: {
-    title: "링크를 찾을 수 없어요",
+    title: "유효하지 않은 링크예요.",
     icon: <AlertIcon size={40} />,
     tone: "bg-bg-subtle text-text-secondary",
     extra: "받은 주소가 끝까지 복사됐는지 확인해 주세요.",
   },
   COMMON_TOO_MANY_REQUESTS: { title: "잠시 후 다시 열어 주세요", icon: <InfoIcon size={40} />, tone: "bg-sky-soft text-sky-strong" },
 };
-const SERVER_ERROR = { title: "문서를 불러오지 못했어요", icon: <InfoIcon size={40} />, tone: "bg-bg-subtle text-text-secondary" };
+const SERVER_ERROR = { title: "문서를 불러오지 못했어요. 다시 시도해 주세요.", icon: <InfoIcon size={40} />, tone: "bg-bg-subtle text-text-secondary" };
 
 /** 로고만 (누를 수 없음 — 받는 분이 서비스 안으로 들어갈 길 없음) */
 function Brand() {
@@ -44,7 +44,7 @@ export default function PublicShareView({ token }: { token: string }) {
     return (
       <main className="flex flex-col gap-6 px-6 pb-10 pt-6">
         <Brand />
-        <LoadingState count={3} label="공유된 문서를 불러오는 중이에요" />
+        <LoadingState count={3} label="공유된 문서를 불러오고 있어요." />
       </main>
     );
   }
@@ -60,7 +60,6 @@ export default function PublicShareView({ token }: { token: string }) {
           <span className={`flex h-20 w-20 items-center justify-center rounded-full ${view.tone}`}>{view.icon}</span>
           <div className="flex flex-col gap-1.5">
             <h1 className="text-heading font-bold text-text-primary">{view.title}</h1>
-            <p className="text-body leading-[1.5] text-text-secondary">{getErrorMessage(state.error)}</p>
             {view.extra && <p className="text-caption text-text-tertiary">{view.extra}</p>}
           </div>
           {isServerError && (
@@ -83,7 +82,7 @@ export default function PublicShareView({ token }: { token: string }) {
       <Brand />
 
       <div className="flex flex-col gap-1">
-        <h1 className="text-title font-bold text-text-primary">공유된 돌봄 정보</h1>
+        <h1 className="text-title font-bold text-text-primary">{data.content.basicInfo.name} 돌봄 안내서</h1>
         <p className="text-body leading-[1.45] text-text-secondary">보호자가 공유한 내용이에요</p>
       </div>
 
@@ -101,6 +100,7 @@ export default function PublicShareView({ token }: { token: string }) {
         basicInfo={data.content.basicInfo}
         summaryLines={data.content.summaryLines}
         sections={data.content.sections}
+        hideTitle
       />
 
       <p className="flex items-start gap-1.5 text-caption font-medium leading-[1.45] text-text-tertiary">

@@ -29,6 +29,9 @@ function infoRows(d: ResourceDetail): { label: string; value: string }[] {
   ];
 }
 
+/** 값이 비어 있는지 (서버가 null이나 ""로 줄 수 있음) */
+const hasValue = (v: string | null | undefined): v is string => !!v && v.trim() !== "";
+
 /** 5.3 기관·제도 상세 (RES-01, 로그인 필요 → 브라우저에서 불러옴) */
 export default function SupportDetailView({ resourceId }: { resourceId: number }) {
   const router = useRouter();
@@ -38,7 +41,7 @@ export default function SupportDetailView({ resourceId }: { resourceId: number }
     return (
       <main className="flex flex-col pb-[120px]">
         <Header title="지원제도 상세 안내" back />
-        <LoadingState count={3} label="지원 정보를 불러오는 중이에요" />
+        <LoadingState count={3} label="정보를 불러오고 있어요." />
       </main>
     );
   }
@@ -56,7 +59,7 @@ export default function SupportDetailView({ resourceId }: { resourceId: number }
             onRetry={() => router.push("/support/results")}
           />
         ) : (
-          <ErrorState message={getErrorMessage(state.error)} onRetry={retry} />
+          <ErrorState title="기관 정보를 불러오지 못했어요." description={getErrorMessage(state.error)} onRetry={retry} />
         )}
       </main>
     );
@@ -68,10 +71,11 @@ export default function SupportDetailView({ resourceId }: { resourceId: number }
 function SupportDetailBody({ detail }: { detail: ResourceDetail }) {
   const k = KIND_STYLE[detail.kind];
   const sub = detail.kind === "PROGRAM" ? `출처 · ${detail.sourceDoc}` : detail.facilityType;
+  const hasPhone = hasValue(detail.phone);
 
   return (
     <main className="flex flex-col pb-[120px]">
-      <Header title="지원제도 상세 안내" subtitle="신청 전에 세부 내용을 확인해 주세요" back />
+      <Header title="지원제도 상세 안내" subtitle="신청 전에 세부 내용을 확인해 주세요." back />
 
       <div className="flex flex-col gap-6 px-6">
         {/* 기관 정보 */}
@@ -88,25 +92,29 @@ function SupportDetailBody({ detail }: { detail: ResourceDetail }) {
           </div>
 
           <div className="flex flex-col gap-2.5 border-t border-line-base pt-3.5 text-[14px] font-medium leading-[1.45] tracking-[-0.21px] text-text-primary">
-            {detail.kind === "FACILITY" && (
+            {detail.kind === "FACILITY" && hasValue(detail.address) && (
               <p className="flex items-center gap-2">
                 <MapPinIcon size={18} className="shrink-0 text-text-secondary" />
                 <span className="min-w-0 flex-1">{detail.address}</span>
               </p>
             )}
-            <p className="flex items-center gap-2">
-              <PhoneIcon size={18} className="shrink-0 text-text-secondary" />
-              <span className="min-w-0 flex-1">{detail.phone}</span>
-            </p>
-            <a
-              href={detail.officialUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-2 font-bold text-primary-strong underline"
-            >
-              <ExternalLinkIcon size={18} className="shrink-0" />
-              <span className="min-w-0 flex-1">공식 안내 페이지 바로가기</span>
-            </a>
+            {hasPhone && (
+              <p className="flex items-center gap-2">
+                <PhoneIcon size={18} className="shrink-0 text-text-secondary" />
+                <span className="min-w-0 flex-1">{detail.phone}</span>
+              </p>
+            )}
+            {hasValue(detail.officialUrl) && (
+              <a
+                href={detail.officialUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 font-bold text-primary-strong underline"
+              >
+                <ExternalLinkIcon size={18} className="shrink-0" />
+                <span className="min-w-0 flex-1">공식 안내 페이지 바로가기</span>
+              </a>
+            )}
           </div>
         </section>
 
@@ -117,7 +125,11 @@ function SupportDetailBody({ detail }: { detail: ResourceDetail }) {
             {infoRows(detail).map((row) => (
               <div key={row.label} className="flex flex-col gap-1 py-3.5">
                 <span className="text-caption font-bold leading-[1.45] text-primary-strong">{row.label}</span>
-                <span className="text-body font-medium leading-[1.5] text-text-primary">{row.value}</span>
+                {hasValue(row.value) ? (
+                  <span className="text-body font-medium leading-[1.5] text-text-primary">{row.value}</span>
+                ) : (
+                  <span className="text-body leading-[1.5] text-text-tertiary">자세한 이용 조건은 기관에 문의해 주세요.</span>
+                )}
               </div>
             ))}
           </div>
@@ -137,12 +149,14 @@ function SupportDetailBody({ detail }: { detail: ResourceDetail }) {
 
         {/* 하단 버튼: 기관에 자동으로 보내는 것 없음 */}
         <div className="flex gap-2">
-          <a
-            href={`tel:${detail.phone.replace(/[^0-9+]/g, "")}`}
-            className="flex h-14 min-w-0 flex-1 items-center justify-center rounded-button border-[1.5px] border-line-strong bg-bg-surface px-5 text-subhead font-bold text-text-primary active:opacity-80"
-          >
-            전화 문의
-          </a>
+          {hasPhone && (
+            <a
+              href={`tel:${detail.phone.replace(/[^0-9+]/g, "")}`}
+              className="flex h-14 min-w-0 flex-1 items-center justify-center rounded-button border-[1.5px] border-line-strong bg-bg-surface px-5 text-subhead font-bold text-text-primary active:opacity-80"
+            >
+              전화 문의
+            </a>
+          )}
           <Link
             href="/share?documentType=GUIDE"
             className="flex h-14 min-w-0 flex-1 items-center justify-center rounded-button bg-primary-strong px-5 text-subhead font-bold text-text-on-primary active:opacity-80"

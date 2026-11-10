@@ -12,8 +12,17 @@ import { lookupUser, sendInvite } from "@/lib/api/member";
 const PERMISSIONS = [
   { title: "조회", description: "돌봄 설명서·리포트 열람" },
   { title: "공유", description: "돌봄 문서 공유 링크 만들기" },
-  { title: "돌봄 지원", description: "돌봄 공백 등록·지원 탐색" },
+  { title: "돌봄 지원", description: "돌봄 지원 정보 조회" },
 ];
+
+const INVITE_SENT_KEY = "invite-sent"; // 6.1 마이페이지와 같은 값
+const SEND_FAILED = "초대를 보내지 못했어요. 다시 시도해 주세요.";
+const ALREADY = "이미 초대했거나 공동 관리자로 등록된 계정이에요.";
+const INVITE_ERROR_TEXT: Record<string, string> = {
+  INVITE_SELF: "본인 계정은 초대할 수 없어요.",
+  INVITE_ALREADY_MEMBER: ALREADY,
+  INVITE_DUPLICATE_PENDING: ALREADY,
+};
 
 /** 6.2 공동 관리자 초대 (OWNER, MEMBER-01 → INVITE-01) */
 export default function InvitePage() {
@@ -54,7 +63,11 @@ function InviteForm() {
   const [checking, setChecking] = useState(false);
   const [sending, setSending] = useState(false);
 
-  const toError = (e: unknown) => ({ code: e instanceof ApiError ? e.code : "", message: getErrorMessage(e) });
+  /** 확정안 문구가 있는 오류는 그 문구로, 없는 계정(INVITE_USER_NOT_FOUND)·그 밖은 서버 문구 */
+  const toError = (e: unknown) => {
+    const code = e instanceof ApiError ? e.code : "";
+    return { code, message: INVITE_ERROR_TEXT[code] ?? getErrorMessage(e) };
+  };
 
   const handleChange = (v: string) => {
     setLoginId(v);
@@ -88,10 +101,17 @@ function InviteForm() {
     setSending(true);
     try {
       await sendInvite(found.loginId);
+      try {
+        sessionStorage.setItem(INVITE_SENT_KEY, "1"); // 6.1에서 "초대를 보냈어요." 안내
+      } catch {
+        // 저장소를 못 쓰면 안내만 생략
+      }
       router.push("/settings");
     } catch (e) {
       setFound(null);
-      setError(toError(e));
+      const err = toError(e);
+      // 확정안에 없는 오류(네트워크 등)는 "초대를 보내지 못했어요."
+      setError((INVITE_ERROR_TEXT[err.code] || err.code === "INVITE_USER_NOT_FOUND") ? err : { ...err, message: SEND_FAILED });
       setSending(false);
     }
   };
@@ -100,7 +120,7 @@ function InviteForm() {
 
   return (
     <main className="flex flex-col pb-[120px]">
-      <Header title="공동 관리자 초대" subtitle="가족이 가입한 계정 ID로 초대할 수 있어요" back />
+      <Header title="공동 관리자 초대" subtitle="가족이 가입한 계정 ID로 초대할 수 있어요." back />
 
       <div className="flex flex-col gap-6 px-6">
         {/* 초대할 계정 */}
@@ -142,7 +162,7 @@ function InviteForm() {
               </span>
               <div className="flex min-w-0 flex-1 flex-col gap-0.5 leading-[1.45]">
                 <span className="truncate text-body font-bold text-text-primary">{found.loginId}</span>
-                <span className="text-caption font-medium text-mint-strong">{found.displayName}님 계정을 확인했어요</span>
+                <span className="text-caption font-medium text-mint-strong">{found.displayName}님 계정을 확인했어요.</span>
               </div>
               <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-mint-strong text-text-on-primary">
                 <CheckIcon size={14} />
@@ -174,7 +194,7 @@ function InviteForm() {
 
         <p className="flex items-start gap-1.5 text-caption font-medium leading-[1.45] text-text-tertiary">
           <LockIcon size={16} className="shrink-0" />
-          일기 원문과 보호자 감정 기록은 공동 관리자도 볼 수 없어요
+          일기 원문과 보호자 감정 기록은 공동 관리자도 볼 수 없어요.
         </p>
 
         <Button onClick={handleInvite} disabled={!found || sending}>

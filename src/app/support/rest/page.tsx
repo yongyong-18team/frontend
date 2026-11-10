@@ -25,7 +25,7 @@ export default function SupportRestPage() {
     return (
       <main className="flex flex-col pb-[120px]">
         <Header title="보호자도 돌봄이 필요해요" back />
-        <LoadingState count={2} />
+        <LoadingState count={2} label="정보를 불러오고 있어요." />
       </main>
     );
   }
@@ -100,7 +100,7 @@ function SupportRestView({ guide }: { guide: BurnoutGuide }) {
         </p>
 
         <Button variant="outline" onClick={() => router.back()}>
-          나중에 볼게요
+          나중에 확인
         </Button>
       </div>
     </main>

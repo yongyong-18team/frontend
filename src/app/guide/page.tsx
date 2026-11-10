@@ -1,10 +1,10 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Header, Button, Chip, ListRow, Dialog, LoadingState, ErrorState } from "@/components/common";
-import { InfoIcon, PhoneIcon, PlusIcon, UserIcon, XIcon } from "@/components/icons/Icons";
+import { CheckIcon, InfoIcon, PhoneIcon, PlusIcon, UserIcon, XIcon } from "@/components/icons/Icons";
 import { SectionIcon, SECTION_TONE, TONE_CLASS } from "@/components/icons/SectionIcons";
 import { DISTRICT_LABEL, SECTION_LABEL, type SectionCode } from "@/constants/labels";
 import { useGuide } from "@/hooks/useGuide";
@@ -26,6 +26,30 @@ function latestDate(section: GuideSectionBlock, fallback: string | null) {
   return dates.length > 0 ? dates[dates.length - 1] : fallback;
 }
 
+/** 3.2에서 저장하고 넘어올 때 남기는 표시 (한 번 보여 주고 지움) */
+const GUIDE_SAVED_KEY = "guide-saved"; // 3.2 편집 화면과 같은 값
+
+/** 저장 완료 안내: 3.2에서 저장 후 넘어왔을 때만 3초 보여 줌 */
+function useSavedNotice() {
+  const [show, setShow] = useState(false);
+  useEffect(() => {
+    try {
+      if (sessionStorage.getItem(GUIDE_SAVED_KEY)) {
+        sessionStorage.removeItem(GUIDE_SAVED_KEY);
+        setShow(true);
+      }
+    } catch {
+      // 저장소를 못 쓰는 브라우저면 안내만 생략
+    }
+  }, []);
+  useEffect(() => {
+    if (!show) return;
+    const t = setTimeout(() => setShow(false), 3000);
+    return () => clearTimeout(t);
+  }, [show]);
+  return show;
+}
+
 /** 3.1 돌봄 설명서 (GUIDE-01) */
 export default function GuidePage() {
   const { state, retry } = useGuide();
@@ -34,7 +58,7 @@ export default function GuidePage() {
     return (
       <main className="flex flex-col pb-[120px]">
         <Header title="돌봄 설명서" />
-        <LoadingState count={3} label="설명서를 불러오는 중이에요" />
+        <LoadingState count={3} label="정보를 불러오고 있어요." />
       </main>
     );
   }
@@ -42,7 +66,7 @@ export default function GuidePage() {
     return (
       <main className="flex flex-col pb-[120px]">
         <Header title="돌봄 설명서" />
-        <ErrorState message={getErrorMessage(state.error)} onRetry={retry} />
+        <ErrorState title="설명서를 불러오지 못했어요." description={getErrorMessage(state.error)} onRetry={retry} />
       </main>
     );
   }
@@ -58,6 +82,7 @@ function GuideView({ guide }: { guide: GuideData }) {
   const findSection = (code: SectionCode): GuideSectionBlock =>
     sections.find((s) => s.section === code) ?? { section: code, entries: [] };
   const openDate = openSection ? latestDate(openSection, updatedAt) : null;
+  const saved = useSavedNotice();
 
   return (
     <main className="flex flex-col pb-[120px]">
@@ -75,6 +100,16 @@ function GuideView({ guide }: { guide: GuideData }) {
       />
 
       <div className="flex flex-col gap-7 px-6">
+        {saved && (
+          <p
+            role="status"
+            className="flex items-center gap-2 rounded-input bg-mint-soft px-4 py-3 text-caption font-bold text-mint-strong"
+          >
+            <CheckIcon size={16} className="shrink-0" />
+            돌봄 설명서가 수정됐어요.
+          </p>
+        )}
+
         {/* 긴급 카드 */}
         <section className="flex flex-col gap-3.5 rounded-card border-[1.5px] border-primary-base bg-bg-surface px-[18px] py-4">
           <div className="flex items-center gap-3.5">
@@ -121,7 +156,7 @@ function GuideView({ guide }: { guide: GuideData }) {
                       </span>
                     ))
                   ) : (
-                    <span className="text-caption font-medium leading-[1.4] text-text-tertiary">아직 작성된 내용이 없어요</span>
+                    <span className="text-caption font-medium leading-[1.4] text-text-tertiary">아직 등록된 정보가 없어요.</span>
                   )}
                 </button>
               );
@@ -133,7 +168,7 @@ function GuideView({ guide }: { guide: GuideData }) {
         <section className="flex flex-col gap-3">
           <div className="flex flex-col gap-0.5">
             <h2 className="text-subhead font-bold text-text-primary">항목별 상세</h2>
-            <p className="text-caption text-text-tertiary">눌러서 자세한 내용을 볼 수 있어요</p>
+            <p className="text-caption text-text-tertiary">눌러서 자세한 내용을 볼 수 있어요.</p>
           </div>
           <div className="flex flex-col divide-y divide-line-base rounded-card bg-bg-surface px-4 py-1">
             {DETAIL_SECTIONS.map((code) => {
@@ -142,7 +177,7 @@ function GuideView({ guide }: { guide: GuideData }) {
                 <ListRow
                   key={code}
                   title={SECTION_LABEL[code]}
-                  description={section.entries[0]?.content ?? "아직 작성된 내용이 없어요"}
+                  description={section.entries[0]?.content ?? "아직 등록된 정보가 없어요."}
                   icon={<SectionIcon section={code} size={20} />}
                   iconTone={SECTION_TONE[code]}
                   trailing={
@@ -202,7 +237,7 @@ function GuideView({ guide }: { guide: GuideData }) {
                 ))}
               </ul>
             ) : (
-              <p className="text-body font-medium text-text-tertiary">아직 작성된 내용이 없어요</p>
+              <p className="text-body font-medium text-text-tertiary">아직 등록된 정보가 없어요.</p>
             )}
 
             <p className="flex items-center gap-1.5 text-micro font-medium leading-[1.45] text-text-tertiary">
