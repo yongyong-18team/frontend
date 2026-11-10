@@ -3,10 +3,11 @@
 //
 // 지금은 가짜 응답으로 동작합니다. 설명서 내용은 lib/api/guide.ts의 가짜 DB를 같이 써서
 // 3.2에서 고친 내용이 4.1·4.2에도 보입니다.
-// 백엔드 연결 시: 각 함수의 "가짜 응답" 부분을 지우고 주석 처리된 실제 요청을 살리면 됩니다.
+// NEXT_PUBLIC_REAL_API에 share(또는 all)가 있으면 실제 서버, 없으면 아래 "가짜 응답"으로 동작합니다.
 
 import { ApiError, api, subjectPath } from '@/lib/api/client';
 import * as mock from '@/lib/api/mock/store';
+import { isReal } from '@/lib/api/realApi';
 import { getGuide } from '@/lib/api/guide';
 import {
   SECTION_ORDER,
@@ -16,8 +17,6 @@ import {
 } from '@/constants/labels';
 import { mockPublicShare, mockShareHistory } from '@/mocks/share';
 
-void api;
-void subjectPath;
 
 /* ───────────── 타입 (명세 그대로) ───────────── */
 
@@ -103,7 +102,7 @@ function toKstIso(ms: number) {
 
 /** SHARE-01 문서 유형별 공개 가능 섹션 */
 export async function getSectionOptions(q: SectionOptionsQuery): Promise<SectionOptionsResponse> {
-  // return api.get<SectionOptionsResponse>(subjectPath('/shares/section-options'), { query: q });
+  if (isReal('share')) return api.get<SectionOptionsResponse>(subjectPath('/shares/section-options'), { query: q });
 
   // ── 가짜 응답 ──
   const guide = await getGuide();
@@ -127,7 +126,7 @@ export async function getSectionOptions(q: SectionOptionsQuery): Promise<Section
 
 /** SHARE-02 공유 초안 + 미리보기 */
 export async function createShareDraft(req: ShareDraftRequest): Promise<ShareDraftResponse> {
-  // return api.post<ShareDraftResponse>(subjectPath('/shares/drafts'), req);
+  if (isReal('share')) return api.post<ShareDraftResponse>(subjectPath('/shares/drafts'), req);
 
   // ── 가짜 응답 ──
   const guide = await getGuide();
@@ -157,7 +156,7 @@ export async function createShareDraft(req: ShareDraftRequest): Promise<ShareDra
 
 /** SHARE-03 승인 → 링크 발급 (shareUrl은 이때만) */
 export async function approveShare(shareId: number): Promise<ShareApproveResponse> {
-  // return api.post<ShareApproveResponse>(subjectPath(`/shares/${shareId}/approve`));
+  if (isReal('share')) return api.post<ShareApproveResponse>(subjectPath(`/shares/${shareId}/approve`));
 
   // ── 가짜 응답 (링크는 로컬 /s/{token}으로 열리게) ──
   await mock.delay(600);
@@ -193,7 +192,7 @@ export async function approveShare(shareId: number): Promise<ShareApproveRespons
 
 /** SHARE-04 공유 내역 */
 export async function getShareHistory(): Promise<{ shares: ShareHistoryItem[] }> {
-  // return api.get<{ shares: ShareHistoryItem[] }>(subjectPath('/shares'));
+  if (isReal('share')) return api.get<{ shares: ShareHistoryItem[] }>(subjectPath('/shares'));
 
   // ── 가짜 응답 ──
   await mock.delay(500);
@@ -202,7 +201,7 @@ export async function getShareHistory(): Promise<{ shares: ShareHistoryItem[] }>
 
 /** SHARE-05 링크 접근 중지 */
 export async function revokeShare(shareId: number): Promise<{ shareId: number; status: ShareStatus }> {
-  // return api.post<{ shareId: number; status: ShareStatus }>(subjectPath(`/shares/${shareId}/revoke`));
+  if (isReal('share')) return api.post<{ shareId: number; status: ShareStatus }>(subjectPath(`/shares/${shareId}/revoke`));
 
   // ── 가짜 응답 ──
   await mock.delay(400);
@@ -222,7 +221,7 @@ export async function revokeShare(shareId: number): Promise<{ shareId: number; s
  * 가짜 토큰: /s/expired · /s/revoked · /s/notfound · /s/toomany · /s/error → 오류, 그 외 → 정상
  */
 export async function getPublicShare(token: string): Promise<PublicShareResponse> {
-  // return api.get<PublicShareResponse>(`/public/shares/${encodeURIComponent(token)}`, { auth: false });
+  if (isReal('share')) return api.get<PublicShareResponse>(`/public/shares/${encodeURIComponent(token)}`, { auth: false });
 
   // ── 가짜 응답 ──
   await mock.delay(400);

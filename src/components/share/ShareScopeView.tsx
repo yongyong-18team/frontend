@@ -22,6 +22,17 @@ type Props = {
   periodStart: string | null;
 };
 
+/**
+ * 주간 리포트 기본 기간의 시작일: 오늘(KST) 포함 최근 7일 → 6일 전 (yyyy-MM-dd)
+ * 2.5 주간 리포트에서 들어오면 그 화면의 periodStart를 그대로 씀
+ * TODO(채원님 확인): REPORT-03 / SHARE-01·02의 periodStart 기준이 같은지
+ */
+function defaultWeeklyStart() {
+  const DAY = 24 * 60 * 60 * 1000;
+  const kst = new Date(Date.now() + 9 * 60 * 60 * 1000 - 6 * DAY);
+  return kst.toISOString().slice(0, 10);
+}
+
 /** Figma 4.1 문서 유형 문구 */
 const TYPE_ITEMS: { type: DocumentType; label: string; description: string; unavailable: string }[] = [
   { type: "GUIDE", label: "돌봄 설명서", description: "누적된 개인별 돌봄 정보", unavailable: "" },
@@ -90,10 +101,12 @@ function ShareScopeForm({
   emergencyNumber: string | null;
 }) {
   const router = useRouter();
+  // 주간 리포트는 기간이 없으면 최근 7일로 (4.1에서 바로 고를 수 있게)
+  const [weeklyStart] = useState(() => periodStart ?? defaultWeeklyStart());
   const available: Record<DocumentType, boolean> = {
     GUIDE: true,
     DAILY: sourceDiaryId !== null,
-    WEEKLY: periodStart !== null,
+    WEEKLY: true,
   };
 
   const [documentType, setDocumentType] = useState<DocumentType>(initialType);
@@ -118,7 +131,7 @@ function ShareScopeForm({
       const next = await getSectionOptions({
         documentType: type,
         sourceDiaryId: type === "DAILY" ? sourceDiaryId : null,
-        periodStart: type === "WEEKLY" ? periodStart : null,
+        periodStart: type === "WEEKLY" ? weeklyStart : null,
       });
       setDocumentType(type);
       setOptions(next);
@@ -144,7 +157,7 @@ function ShareScopeForm({
     const request: ShareDraftRequest = {
       documentType,
       sourceDiaryId: documentType === "DAILY" ? sourceDiaryId : null,
-      periodStart: documentType === "WEEKLY" ? periodStart : null,
+      periodStart: documentType === "WEEKLY" ? weeklyStart : null,
       sectionCodes: options.options.map((o) => o.sectionCode).filter((c) => selected.includes(c)), // 표시 순서대로
       showEmergencyContact: options.emergencyContact.available && showEmergency,
       recipientLabel: recipientLabel.trim() || null,

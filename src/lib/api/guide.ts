@@ -1,18 +1,15 @@
 // src/lib/api/guide.ts
 // 설명서·대상자 API (API 명세 2-2 SUBJ-02·03, 2-6 GUIDE-01~04, 백엔드 A·B)
 //
-// 지금은 src/mocks/의 예시 데이터를 복사해 "브라우저 안의 가짜 DB"로 동작합니다.
-// (3.2에서 저장하면 3.1에 바로 반영, 새로고침하면 처음으로 돌아감)
-// 백엔드 연결 시: 각 함수의 "가짜 응답" 부분을 지우고 주석 처리된 실제 요청을 살리면 됩니다.
+// NEXT_PUBLIC_REAL_API에 guide(또는 all)가 있으면 실제 서버, 없으면 가짜 DB(src/mocks 복사본)로 동작합니다.
+// 가짜 DB는 새로고침하면 처음으로 돌아갑니다.
 
 import { ApiError, api, subjectPath } from '@/lib/api/client';
 import * as mock from '@/lib/api/mock/store';
 import type { District, SectionCode } from '@/constants/labels';
 import { mockGuide } from '@/mocks/guide';
 import { mockSubject } from '@/mocks/subject';
-
-void api;
-void subjectPath;
+import { isReal } from '@/lib/api/realApi';
 
 /* ───────────── 타입 (명세 그대로) ───────────── */
 
@@ -89,7 +86,7 @@ function checkContent(content: string) {
 
 /** GUIDE-01 설명서 전체 (기본 정보 + 7개 섹션) */
 export async function getGuide(): Promise<GuideData> {
-  // return api.get<GuideData>(subjectPath('/guide'));
+  if (isReal('guide')) return api.get<GuideData>(subjectPath('/guide'));
 
   // ── 가짜 응답 ──
   await mock.delay(500);
@@ -98,7 +95,7 @@ export async function getGuide(): Promise<GuideData> {
 
 /** GUIDE-02 항목 추가 (MANUAL) */
 export async function addGuideEntry(section: SectionCode, content: string): Promise<{ entryId: number }> {
-  // return api.post<{ entryId: number }>(subjectPath('/guide/entries'), { section, content });
+  if (isReal('guide')) return api.post<{ entryId: number }>(subjectPath('/guide/entries'), { section, content });
 
   // ── 가짜 응답 ──
   await mock.delay(300);
@@ -115,7 +112,9 @@ export async function addGuideEntry(section: SectionCode, content: string): Prom
 
 /** GUIDE-03 항목 수정 */
 export async function updateGuideEntry(entryId: number, content: string): Promise<{ entryId: number; updatedAt: string }> {
-  // return api.patch<{ entryId: number; updatedAt: string }>(subjectPath(`/guide/entries/${entryId}`), { content });
+  if (isReal('guide')) {
+    return api.patch<{ entryId: number; updatedAt: string }>(subjectPath(`/guide/entries/${entryId}`), { content });
+  }
 
   // ── 가짜 응답 ──
   await mock.delay(300);
@@ -128,7 +127,10 @@ export async function updateGuideEntry(entryId: number, content: string): Promis
 
 /** GUIDE-04 항목 삭제 */
 export async function deleteGuideEntry(entryId: number): Promise<void> {
-  // return api.delete<void>(subjectPath(`/guide/entries/${entryId}`));
+  if (isReal('guide')) {
+    await api.delete<void>(subjectPath(`/guide/entries/${entryId}`));
+    return;
+  }
 
   // ── 가짜 응답 ──
   await mock.delay(300);
@@ -140,16 +142,19 @@ export async function deleteGuideEntry(entryId: number): Promise<void> {
 
 /** SUBJ-02 대상자 기본 정보 */
 export async function getSubject(): Promise<SubjectData> {
-  // return api.get<SubjectData>(subjectPath());
+  if (isReal('guide')) return api.get<SubjectData>(subjectPath());
 
   // ── 가짜 응답 ──
   await mock.delay(400);
   return structuredClone(subjectDb);
 }
 
-/** SUBJ-03 대상자 기본 정보·비상 연락처 수정 (바꿀 값만) */
+/**
+ * SUBJ-03 대상자 기본 정보·비상 연락처 수정 (바꿀 값만)
+ * TODO(현석님 확인): 동·비상 연락처를 지울 때 null / "" 중 무엇을 받는지. 지금은 null로 보냄
+ */
 export async function updateSubject(patch: SubjectPatch): Promise<{ subjectId: number; updatedAt: string }> {
-  // return api.patch<{ subjectId: number; updatedAt: string }>(subjectPath(), patch);
+  if (isReal('guide')) return api.patch<{ subjectId: number; updatedAt: string }>(subjectPath(), patch);
 
   // ── 가짜 응답 ──
   await mock.delay(300);
