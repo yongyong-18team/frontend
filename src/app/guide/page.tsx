@@ -78,9 +78,15 @@ function GuideView({ guide }: { guide: GuideData }) {
   const dialogTitleId = useId();
   const { basicInfo, sections, editable, updatedAt } = guide;
 
-  const [openSection, setOpenSection] = useState<GuideSectionBlock | null>(null);
+  // 열린 항목은 코드만 기억하고 내용은 항상 최신 데이터에서 꺼냄 (저장 후 돌아왔을 때 옛 내용이 보이지 않게)
+  const [openCode, setOpenCode] = useState<SectionCode | null>(null);
   const findSection = (code: SectionCode): GuideSectionBlock =>
     sections.find((s) => s.section === code) ?? { section: code, entries: [] };
+  const openSection = openCode ? findSection(openCode) : null;
+  const setOpenSection = (s: GuideSectionBlock | null) => setOpenCode(s ? s.section : null);
+
+  // 다른 화면으로 가면 상세 팝업을 닫음 (Next가 이 화면을 숨겨 두었다가 다시 보여 줄 때 팝업이 남아 있지 않게)
+  useEffect(() => () => setOpenCode(null), []);
   const openDate = openSection ? latestDate(openSection, updatedAt) : null;
   const saved = useSavedNotice();
 
@@ -246,7 +252,11 @@ function GuideView({ guide }: { guide: GuideData }) {
             </p>
 
             {editable && (
-              <Button variant="soft" onClick={() => router.push("/guide/edit")}>
+              <Button variant="soft" onClick={() => {
+                  const code = openSection.section;
+                  setOpenCode(null);
+                  router.push(`/guide/edit?section=${code}`);
+                }}>
                 이 항목 편집하기
               </Button>
             )}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Header, Button, Input, Select, EmptyState, LoadingState, ErrorState, Modal } from "@/components/common";
 import { InfoIcon, PlusIcon, XIcon } from "@/components/icons/Icons";
@@ -80,7 +80,14 @@ export default function GuideEditPage() {
       </main>
     );
   }
-  return <GuideEditForm guide={state.data.guide} subject={state.data.subject} />;
+  // 불러올 때마다 폼을 새로 그림 (다시 들어왔을 때 이전에 고치던 내용·저장 중 상태·팝업이 남지 않게)
+  return <GuideEditForm key={state.data.loadedAt} guide={state.data.guide} subject={state.data.subject} />;
+}
+
+/** 주소의 ?section=코드 (3.1 "이 항목 편집하기"). 없거나 잘못된 값이면 null */
+function sectionFromUrl(): SectionCode | null {
+  const code = new URLSearchParams(window.location.search).get("section");
+  return SECTION_ORDER.find((s) => s === code) ?? null;
 }
 
 function GuideEditForm({ guide, subject }: { guide: GuideData; subject: SubjectData }) {
@@ -96,6 +103,11 @@ function GuideEditForm({ guide, subject }: { guide: GuideData; subject: SubjectD
 
   // 항목 (GUIDE-02·03·04)
   const [section, setSection] = useState<SectionCode>("PROHIBITED");
+  // 화면이 그려진 뒤 주소를 읽어서 그 항목으로 맞춤 (페이지 이동 직후 주소가 늦게 바뀌는 경우까지 대비)
+  useEffect(() => {
+    const fromUrl = sectionFromUrl();
+    if (fromUrl) setSection(fromUrl);
+  }, []);
   const [drafts, setDrafts] = useState<DraftEntry[]>(() => initialDrafts(guide));
   const newKey = useRef(0);
 
@@ -187,6 +199,7 @@ function GuideEditForm({ guide, subject }: { guide: GuideData; subject: SubjectD
       } catch {
         // 저장소를 못 쓰면 안내만 생략
       }
+      setSaving(false);
       router.push("/guide");
     } catch (e) {
       setSaveError(getErrorMessage(e));
@@ -343,7 +356,10 @@ function GuideEditForm({ guide, subject }: { guide: GuideData; subject: SubjectD
         title="저장하지 않은 변경 사항이 있어요. 나가시겠어요?"
         cancelLabel="취소"
         confirmLabel="나가기"
-        onConfirm={() => router.back()}
+        onConfirm={() => {
+          setLeaveOpen(false);
+          router.back();
+        }}
         onClose={() => setLeaveOpen(false)}
       />
     </main>

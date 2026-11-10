@@ -2,10 +2,11 @@
 // 계정·공동 관리자 API (API 명세 2-1 USER-01·03, 2-8 MEMBER-01~03·INVITE-01~06, 백엔드 A)
 //
 // 지금은 src/mocks/account.ts 데이터로 "브라우저 안의 가짜 DB"처럼 동작합니다. (새로고침하면 처음으로)
-// 백엔드 연결 시: 각 함수의 "가짜 응답" 부분을 지우고 주석 처리된 실제 요청을 살리면 됩니다.
+// NEXT_PUBLIC_REAL_API에 member(또는 all)가 있으면 실제 서버, 없으면 아래 "가짜 응답"으로 동작합니다.
 
 import { ApiError, api, subjectPath } from '@/lib/api/client';
 import * as mock from '@/lib/api/mock/store';
+import { isReal } from '@/lib/api/realApi';
 import type { SubjectRole } from '@/lib/auth/session';
 import {
   mockMe,
@@ -15,8 +16,6 @@ import {
   mockUsers,
 } from '@/mocks/account';
 
-void api;
-void subjectPath;
 
 /* ───────────── 타입 (Swagger 그대로) ───────────── */
 
@@ -74,7 +73,7 @@ const nowIso = () => new Date().toISOString();
 
 /** USER-01 내 정보 (대상자별 역할, 받은 초대 수) */
 export async function getMe(): Promise<MeResponse> {
-  // return api.get<MeResponse>('/users/me');
+  if (isReal('member')) return api.get<MeResponse>('/users/me');
 
   // ── 가짜 응답 ──
   await mock.delay(300);
@@ -83,7 +82,7 @@ export async function getMe(): Promise<MeResponse> {
 
 /** USER-03 탈퇴 */
 export async function withdraw(): Promise<void> {
-  // return api.delete<void>('/users/me');
+  if (isReal('member')) return api.delete<void>('/users/me');
 
   // ── 가짜 응답 ──
   await mock.delay(500);
@@ -91,7 +90,7 @@ export async function withdraw(): Promise<void> {
 
 /** MEMBER-02 공동 관리자 목록 */
 export async function getMembers(): Promise<MembersResponse> {
-  // return api.get<MembersResponse>(subjectPath('/members'));
+  if (isReal('member')) return api.get<MembersResponse>(subjectPath('/members'));
 
   // ── 가짜 응답 ──
   await mock.delay(400);
@@ -100,7 +99,7 @@ export async function getMembers(): Promise<MembersResponse> {
 
 /** MEMBER-03 공동 관리자 삭제 + 그 사람이 만든 활성 링크 철회 */
 export async function removeMember(userId: number): Promise<{ revokedShareCount: number }> {
-  // return api.delete<{ revokedShareCount: number }>(subjectPath(`/members/${userId}`));
+  if (isReal('member')) return api.delete<{ revokedShareCount: number }>(subjectPath(`/members/${userId}`));
 
   // ── 가짜 응답 ──
   await mock.delay(500);
@@ -116,7 +115,7 @@ export async function removeMember(userId: number): Promise<{ revokedShareCount:
 
 /** MEMBER-01 계정 존재 확인 (표시명만, 분당 10회) */
 export async function lookupUser(loginId: string): Promise<{ userId: number; displayName: string }> {
-  // return api.get<{ userId: number; displayName: string }>('/users/lookup', { query: { loginId } });
+  if (isReal('member')) return api.get<{ userId: number; displayName: string }>('/users/lookup', { query: { loginId } });
 
   // ── 가짜 응답 ──
   await mock.delay(400);
@@ -127,7 +126,7 @@ export async function lookupUser(loginId: string): Promise<{ userId: number; dis
 
 /** INVITE-01 초대 발송 (권한 값은 보내지 않음) */
 export async function sendInvite(inviteeLoginId: string): Promise<{ invitationId: number; status: InvitationStatus }> {
-  // return api.post<{ invitationId: number; status: InvitationStatus }>(subjectPath('/invitations'), { inviteeLoginId });
+  if (isReal('member')) return api.post<{ invitationId: number; status: InvitationStatus }>(subjectPath('/invitations'), { inviteeLoginId });
 
   // ── 가짜 응답 ──
   await mock.delay(500);
@@ -154,7 +153,7 @@ export async function sendInvite(inviteeLoginId: string): Promise<{ invitationId
 
 /** INVITE-02 보낸 초대 목록 (status 생략하면 전체, 최신순) ⚠ 백엔드 #71 머지 후 Swagger 확인 */
 export async function getSentInvitations(status?: InvitationStatus): Promise<{ invitations: SentInvitation[] }> {
-  // return api.get<{ invitations: SentInvitation[] }>(subjectPath('/invitations'), { query: { status } });
+  if (isReal('member')) return api.get<{ invitations: SentInvitation[] }>(subjectPath('/invitations'), { query: { status } });
 
   // ── 가짜 응답 ──
   await mock.delay(400);
@@ -163,7 +162,7 @@ export async function getSentInvitations(status?: InvitationStatus): Promise<{ i
 
 /** INVITE-03 대기 중 초대 취소 */
 export async function cancelInvitation(invitationId: number): Promise<void> {
-  // return api.post<void>(subjectPath(`/invitations/${invitationId}/cancel`));
+  if (isReal('member')) return api.post<void>(subjectPath(`/invitations/${invitationId}/cancel`));
 
   // ── 가짜 응답 ──
   await mock.delay(400);
@@ -177,7 +176,7 @@ export async function cancelInvitation(invitationId: number): Promise<void> {
 
 /** INVITE-04 받은 초대 목록 */
 export async function getReceivedInvitations(): Promise<{ invitations: ReceivedInvitation[] }> {
-  // return api.get<{ invitations: ReceivedInvitation[] }>('/users/me/invitations');
+  if (isReal('member')) return api.get<{ invitations: ReceivedInvitation[] }>('/users/me/invitations');
 
   // ── 가짜 응답 ──
   await mock.delay(400);
@@ -188,7 +187,7 @@ const NOT_PENDING = () => new ApiError(409, 'INVITE_NOT_PENDING', '이미 처리
 
 /** INVITE-05 수락 → { subjectId, role } (화면에서 setSubjectId로 현재 대상자 저장) */
 export async function acceptInvitation(invitationId: number): Promise<{ subjectId: number; role: SubjectRole }> {
-  // return api.post<{ subjectId: number; role: SubjectRole }>(`/users/me/invitations/${invitationId}/accept`);
+  if (isReal('member')) return api.post<{ subjectId: number; role: SubjectRole }>(`/users/me/invitations/${invitationId}/accept`);
 
   // ── 가짜 응답 ──
   await mock.delay(500);
@@ -199,7 +198,7 @@ export async function acceptInvitation(invitationId: number): Promise<{ subjectI
 
 /** INVITE-06 거절 */
 export async function rejectInvitation(invitationId: number): Promise<void> {
-  // return api.post<void>(`/users/me/invitations/${invitationId}/reject`);
+  if (isReal('member')) return api.post<void>(`/users/me/invitations/${invitationId}/reject`);
 
   // ── 가짜 응답 ──
   await mock.delay(400);

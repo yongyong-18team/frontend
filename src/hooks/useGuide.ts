@@ -13,8 +13,9 @@ export function useGuide() {
 
 /** 3.2 편집: 대상자 정보 + 설명서를 함께 */
 export function useGuideEdit() {
-  return useLoad<{ guide: GuideData; subject: SubjectData }>(async () => {
+  return useLoad<{ guide: GuideData; subject: SubjectData; loadedAt: number }>(async () => {
     const [guide, subject] = await Promise.all([getGuide(), getSubject()]);
-    return { guide, subject };
+    // loadedAt: 불러올 때마다 바뀌는 값. 편집 폼을 새로 그리는 key로 씀
+    return { guide, subject, loadedAt: Date.now() };
   });
 }

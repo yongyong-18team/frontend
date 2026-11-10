@@ -2,17 +2,16 @@
 // 돌봄 지원 API (API 명세 2-9 RES-01·02, SUP-01, 백엔드 C)
 //
 // 지금은 src/mocks/resource.ts·support.ts 데이터로 동작합니다.
-// 백엔드 연결 시: 각 함수의 "가짜 응답" 부분을 지우고 주석 처리된 실제 요청을 살리면 됩니다.
+// NEXT_PUBLIC_REAL_API에 resource(또는 all)가 있으면 실제 서버, 없으면 아래 "가짜 응답"으로 동작합니다.
 
 import { ApiError, api, subjectPath } from '@/lib/api/client';
 import * as mock from '@/lib/api/mock/store';
+import { isReal } from '@/lib/api/realApi';
 import type { District } from '@/constants/labels';
 import { getSubject } from '@/lib/api/guide';
 import { mockResourceDetail, mockSearchResources } from '@/mocks/resource';
 import { mockCaregiverSupport } from '@/mocks/support';
 
-void api;
-void subjectPath;
 
 /* ───────────── 타입 (Swagger 그대로) ───────────── */
 
@@ -35,7 +34,7 @@ export type ResourceResult =
 
 /** RES-02 응답 (condition.district = 실제로 적용한 지역) */
 export type ResourceSearchResponse = {
-  condition: { careTerm: CareTerm | null; neededDate: string | null; district: District; dong: string | null };
+  condition: { careTerm: CareTerm | 'BOTH' | null; neededDate: string | null; district: District; dong: string | null };
   disclaimer: string;
   results: ResourceResult[];
 };
@@ -80,7 +79,7 @@ export type BurnoutGuide = {
 
 /** RES-02 조건으로 기관·제도 검색 (결과 없으면 빈 배열) */
 export async function searchResources(query: ResourceSearchQuery): Promise<ResourceSearchResponse> {
-  // return api.get<ResourceSearchResponse>(subjectPath('/resources/search'), { query });
+  if (isReal('resource')) return api.get<ResourceSearchResponse>(subjectPath('/resources/search'), { query });
 
   // ── 가짜 응답 (district를 안 보내면 대상자 등록 지역) ──
   const subject = await getSubject();
@@ -89,7 +88,7 @@ export async function searchResources(query: ResourceSearchQuery): Promise<Resou
 
 /** RES-01 기관·제도 상세 (로그인 필요) */
 export async function getResourceDetail(resourceId: number): Promise<ResourceDetail> {
-  // return api.get<ResourceDetail>(`/resources/${resourceId}`);
+  if (isReal('resource')) return api.get<ResourceDetail>(`/resources/${resourceId}`);
 
   // ── 가짜 응답 ──
   await mock.delay(400);
@@ -100,7 +99,7 @@ export async function getResourceDetail(resourceId: number): Promise<ResourceDet
 
 /** SUP-01 보호자 휴식 안내 문구 + 제도 목록 */
 export async function getBurnoutGuide(): Promise<BurnoutGuide> {
-  // return api.get<BurnoutGuide>('/support/burnout-guide');
+  if (isReal('resource')) return api.get<BurnoutGuide>('/support/burnout-guide');
 
   // ── 가짜 응답 ──
   await mock.delay(400);
