@@ -69,3 +69,10 @@ test('회원가입 → 온보딩 4단계 → 홈', async ({ page }) => {
   await expect(page).toHaveURL(/\/home/);
   await expect(visibleMain(page).getByRole('heading', { name: '하늘과 오늘도 함께해요' })).toBeVisible();
 });
+
+test('로그인 화면에 아이디·비밀번호 찾기가 없음 (기획 협의로 제외)', async ({ page }) => {
+  await page.goto('/login');
+  await expect(page.getByRole('button', { name: '로그인', exact: true })).toBeVisible();
+  await expect(page.getByText('아이디 찾기')).toHaveCount(0);
+  await expect(page.getByText('비밀번호 찾기')).toHaveCount(0);
+});
