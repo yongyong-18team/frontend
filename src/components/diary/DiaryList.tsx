@@ -76,7 +76,8 @@ export default function DiaryList() {
             <button
               type="button"
               aria-label="안내 닫기"
-              className="text-caption text-mint-strong underline"
+              // 누르는 영역 44px 이상 (PRD 5-5). 음수 여백으로 화면 배치는 그대로
+              className="-my-3 -mr-2 flex min-h-11 items-center px-2 py-3 text-caption text-mint-strong underline"
               onClick={() => {
                 setDoneClosed(true);
                 // 새로고침해도 다시 안 뜨게 주소에서 지움

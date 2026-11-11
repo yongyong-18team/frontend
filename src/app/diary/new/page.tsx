@@ -23,6 +23,7 @@ import { useRecorder, type RecorderError } from '@/hooks/useRecorder';
 import { ApiError, CLIENT_ERROR, getErrorMessage } from '@/lib/api/client';
 import { createDiary, STT_MAX_BYTES, STT_MAX_SECONDS, transcribeAudio } from '@/lib/api/diary';
 import { formatKoreanDate, toDateKey } from '@/lib/date';
+import { clearWriteDraft, loadWriteDraft, saveWriteDraft } from '@/lib/diary/writeDraft';
 
 const MAX_LENGTH = 1000;
 
@@ -63,6 +64,28 @@ export default function DiaryWritePage() {
   const [showEmptyError, setShowEmptyError] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
   const savedRef = useRef(false);
+  const [restored, setRestored] = useState(false);
+
+  // 쓰던 내용 불러오기 (로그인 만료로 로그인 화면에 다녀온 경우 등, PRD 5-5 "오류 발생 시 기존 입력 유지")
+  // 저장된 값은 브라우저에만 있어서 화면이 뜬 뒤에 채움
+  useEffect(() => {
+    const draft = loadWriteDraft();
+    if (!draft) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- 브라우저 저장소 값을 한 번 불러옴
+    setContent((prev) => prev || draft.content);
+    setFromRecording((prev) => prev || draft.fromRecording);
+    setRestored(true);
+  }, []);
+
+  // 쓰는 동안 임시 저장 (첫 번째 실행은 위에서 불러오기 전이라 건너뜀)
+  const draftReadyRef = useRef(false);
+  useEffect(() => {
+    if (!draftReadyRef.current) {
+      draftReadyRef.current = true;
+      return;
+    }
+    saveWriteDraft({ content, fromRecording });
+  }, [content, fromRecording]);
 
   // Next.js 16은 다른 화면으로 가도 이 화면 상태를 보관했다가 뒤로가기 때 그대로 보여줌.
   // 저장하고 2.2로 넘어간 뒤 돌아오면 "분석 요청 중…"에 멈춰 있지 않도록, 화면이 가려질 때 처음 상태로 되돌림
@@ -154,6 +177,8 @@ export default function DiaryWritePage() {
         inputType: fromRecording ? 'VOICE' : 'TEXT',
       });
       savedRef.current = true;
+      clearWriteDraft(); // 저장됐으니 임시 저장은 지움
+      setRestored(false);
       router.push(`/diary/${diaryId}/result`);
     } catch (e) {
       setSubmitError(getErrorMessage(e));
@@ -275,6 +300,12 @@ export default function DiaryWritePage() {
           </span>
           <span className="h-px flex-1 bg-line-strong" />
         </div>
+
+        {restored && content.trim() && (
+          <p className="text-caption text-mint-strong" role="status">
+            작성하던 내용을 불러왔어요.
+          </p>
+        )}
 
         <div
           className={`flex flex-col gap-2 rounded-button bg-bg-surface px-4 pt-[14px] pb-3 ${inputBorder}`}
