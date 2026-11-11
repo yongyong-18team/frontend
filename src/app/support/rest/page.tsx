@@ -1,21 +1,12 @@
 "use client";
 
-import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { Header, Button, ListRow, LoadingState, ErrorState } from "@/components/common";
-import { BuildingIcon, ChatIcon, CoffeeIcon, HeartIcon, InfoIcon } from "@/components/icons/Icons";
-import type { Tone } from "@/components/icons/SectionIcons";
+import { HeartIcon, InfoIcon } from "@/components/icons/Icons";
+import { programStyle } from "@/components/support/programStyle";
 import { useBurnoutGuide } from "@/hooks/useSupport";
 import { getErrorMessage } from "@/lib/api/client";
 import type { BurnoutGuide } from "@/lib/api/resource";
-
-/** programType → 아이콘·색·설명 (Figma 5.4 문구, 서버가 설명을 주지 않아 임시) */
-const PROGRAM_STYLE: Record<string, { icon: ReactNode; tone: Tone; description: string }> = {
-  FAMILY_REST: { icon: <CoffeeIcon size={22} />, tone: "peach", description: "보호자 휴식 지원" },
-  PARENT_COUNSELING: { icon: <ChatIcon size={22} />, tone: "mint", description: "전문 상담기관 안내" },
-  EMERGENCY_CARE: { icon: <BuildingIcon size={22} />, tone: "sky", description: "돌봄 공백 발생 시 연계" },
-};
-const DEFAULT_STYLE = { icon: <ChatIcon size={22} />, tone: "mint" as Tone, description: "" };
 
 /** 5.4 보호자 휴식 안내 (화면에 "소진" 같은 진단처럼 들리는 단어를 쓰지 않음) */
 export default function SupportRestPage() {
@@ -77,13 +68,13 @@ function SupportRestView({ guide }: { guide: BurnoutGuide }) {
             <h2 className="text-subhead font-bold text-text-primary">이런 지원 제도가 있어요</h2>
             <div className="flex flex-col divide-y divide-line-base rounded-card bg-bg-surface px-4 py-1">
               {programs.map((p) => {
-                const s = PROGRAM_STYLE[p.programType] ?? DEFAULT_STYLE;
+                const s = programStyle(p.programType); // 5.3 상세와 같은 아이콘·색
                 return (
                   <ListRow
                     key={p.resourceId}
                     size="lg"
                     href={`/support/${p.resourceId}`}
-                    icon={s.icon}
+                    icon={<s.Icon size={22} />}
                     iconTone={s.tone}
                     title={p.name}
                     description={s.description || undefined}
