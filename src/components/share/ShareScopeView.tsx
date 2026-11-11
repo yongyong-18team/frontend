@@ -38,7 +38,6 @@ function defaultWeeklyStart() {
  * 일일 기록·주간 리포트는 화면에 보이기만 하고 선택은 안 됨. 나중에 열 때 여기에 추가
  */
 const ENABLED_TYPES: DocumentType[] = ["GUIDE"];
-const COMING_SOON = "준비 중인 기능이에요";
 
 /** Figma 4.1 문서 유형 문구 */
 const TYPE_ITEMS: { type: DocumentType; label: string; description: string; unavailable: string }[] = [
@@ -201,11 +200,8 @@ function ShareScopeForm({
                 value={item.type}
                 label={item.label}
                 description={
-                    available[item.type]
-                      ? item.description
-                      : ENABLED_TYPES.includes(item.type)
-                        ? item.unavailable
-                        : `${item.description} · ${COMING_SOON}`
+                    // 이번 버전에서 막아 둔 유형은 원래 설명만 보여 주고 회색으로 (안내 문구 없음)
+                    available[item.type] || !ENABLED_TYPES.includes(item.type) ? item.description : item.unavailable
                   }
                 checked={documentType === item.type}
                 disabled={!available[item.type] || loadingType}
