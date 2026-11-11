@@ -15,6 +15,7 @@ import { EmptyState, ErrorState, LoadingState } from '@/components/common/StateV
 import { ChartIcon, ChevronRightIcon, GuideIcon, SupportIcon, UsersIcon } from '@/components/icons/Icons';
 import { useHome } from '@/hooks/useHome';
 import { ApiError, CLIENT_ERROR, getErrorMessage } from '@/lib/api/client';
+import { dailyRecordHref } from '@/lib/api/dailyRecord';
 import type { HomeData, RecentActivity } from '@/lib/api/home';
 import { formatKoreanDate, fromDateKey } from '@/lib/date';
 
@@ -175,7 +176,7 @@ function RecentSection({ isOwner, activities }: { isOwner: boolean; activities: 
         <h2 id="home-recent" className="flex-1 text-[17px] leading-[1.45] font-bold text-text-primary">
           최근 기록
         </h2>
-        {/* TODO(B·A): 공동 관리자용 2.4(REPORT-01) 화면이 생기면 같은 주소로 */}
+        {/* OWNER·공동 관리자 모두 /diary (역할에 따라 2.4 화면이 바뀜) */}
         {activities.length > 0 && (
           <Link href={PATH.diaryList} className="text-caption leading-[1.45] font-medium text-text-tertiary">
             전체보기
@@ -217,12 +218,19 @@ function RecentRow({ activity, isOwner }: { activity: RecentActivity; isOwner: b
         <span className="truncate text-[14px] leading-[1.45] text-text-secondary">{sub}</span>
       </span>
       {isOwner && activity.pendingCount > 0 && <Chip tone="peach">검토 대기</Chip>}
-      {isOwner && <ChevronRightIcon size={20} className="shrink-0 text-text-tertiary" />}
+      {(isOwner || activity.approvedCount > 0) && <ChevronRightIcon size={20} className="shrink-0 text-text-tertiary" />}
     </>
   );
 
-  // TODO(B·C): 공동 관리자는 REPORT-02 일일 기록 화면으로 가야 함 (화면 생기면 연결). 지금은 누를 수 없게 둠
-  if (!isOwner) return <div className="flex items-center gap-3 py-4">{body}</div>;
+  // 공동 관리자: 반영된 항목이 있으면 REPORT-02 일일 기록 상세, 없으면 볼 내용이 없어 누를 수 없게 둠
+  if (!isOwner) {
+    if (activity.approvedCount === 0) return <div className="flex items-center gap-3 py-4">{body}</div>;
+    return (
+      <Link href={dailyRecordHref(activity.diaryId)} className="flex items-center gap-3 py-4">
+        {body}
+      </Link>
+    );
+  }
 
   // 2.4와 같은 규칙: 추출 항목이 있으면 2.3 검토, 아직 분석 전·추출 없음이면 2.2 결과
   const hasItems = activity.pendingCount + activity.approvedCount > 0;

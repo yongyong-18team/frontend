@@ -24,7 +24,7 @@ import {
   submitOnboarding,
   type Term,
 } from '@/lib/api/onboarding';
-import { setSubjectId } from '@/lib/auth/session';
+import { setSubjectId, setSubjectRole } from '@/lib/auth/session';
 import { clearDraft } from '@/lib/onboarding/draft';
 
 type GroupId = (typeof CONSENT_GROUPS)[number]['id'];
@@ -90,6 +90,7 @@ export default function ConfirmStep() {
           .map((t) => ({ consentType: t.consentType, termsVersion: t.termsVersion })),
       });
       setSubjectId(res.subjectId);
+      setSubjectRole(res.subjectId, 'OWNER'); // 온보딩으로 만든 대상자는 내가 OWNER
       clearDraft();
       router.replace('/home');
     } catch (err) {

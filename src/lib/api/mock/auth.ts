@@ -2,7 +2,8 @@
 // 가짜 계정 저장소 (AUTH-01·02·03 흉내). localStorage에 저장, 이 브라우저에만 남습니다.
 // 백엔드를 연결하면 mock 폴더째 지웁니다.
 //
-// 개발용 계정: demo1234 / demo1234 (대상자 "민준" 있음)
+// 개발용 계정: demo1234 / demo1234 (대상자 "민준" 있음, OWNER)
+//             co1234 / co1234     (같은 "민준"의 공동 관리자 — 2.4 공동 관리자 화면 확인용)
 // 온보딩(ONB-01)·동의 항목(TERMS-01)도 여기서 흉내 냅니다.
 
 import { ApiError } from '@/lib/api/client';
@@ -35,6 +36,16 @@ const DEMO_USER: MockUser = {
   pendingInvitationCount: 0,
 };
 
+const CO_USER: MockUser = {
+  userId: 9001, // 가입한 계정 번호와 겹치지 않게 크게
+  loginId: 'co1234',
+  password: 'co1234',
+  displayName: '박지수',
+  relation: 'OTHER',
+  subjects: [{ subjectId: 10, name: '민준', role: 'CO_MANAGER' }],
+  pendingInvitationCount: 0,
+};
+
 let cache: MockUser[] | null = null;
 const failures = new Map<string, number>();
 
@@ -48,7 +59,11 @@ function users(): MockUser[] {
       saved = [];
     }
   }
-  cache = saved.some((u) => u.loginId === DEMO_USER.loginId) ? saved : [DEMO_USER, ...saved];
+  cache = saved;
+  // 개발용 계정이 없으면 앞에 추가 (예전에 저장된 목록에도)
+  for (const demo of [CO_USER, DEMO_USER]) {
+    if (!cache.some((u) => u.loginId === demo.loginId)) cache.unshift(demo);
+  }
   return cache;
 }
 

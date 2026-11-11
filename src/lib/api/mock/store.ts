@@ -19,6 +19,7 @@ import type {
   ReviewStatus,
   TimeSlot,
 } from '@/lib/api/diary';
+import type { DailyRecordDetail, DailyRecordList } from '@/lib/api/dailyRecord';
 import type { WeeklyReport } from '@/lib/api/report';
 import { analyzeContent } from '@/lib/api/mock/analyze';
 import { addDays, fromDateKey, toDateKey } from '@/lib/date';
@@ -267,6 +268,44 @@ export function reviewItems(diaryId: number, decisions: ReviewDecision[]): Revie
   }
   save();
   return result;
+}
+
+/* ───────────── REPORT-01·02 (공동 관리자용 일일 기록) ───────────── */
+
+/** 설명서 섹션 순서 (PRD 3.1) */
+const SECTION_ORDER = ['PROHIBITED', 'HEALTH_RISK', 'COMMUNICATION', 'BEHAVIOR_RESPONSE', 'DAILY_LIFE', 'MEDICATION', 'PREFERENCE'];
+
+/** REPORT-01: 승인 항목이 하나라도 있는 기록만, 최신순. 요약은 승인 항목 문장으로 만듦 (원문 아님) */
+export function dailyRecords(from?: string, to?: string): DailyRecordList {
+  if (hasDevParam('seed') && Object.keys(db().diaries).length === 0) seed();
+  const records = Object.values(db().diaries)
+    .filter((d) => (!from || d.diaryDate >= from) && (!to || d.diaryDate <= to))
+    .map((d) => ({ d, approved: d.items.filter((i) => i.status === 'APPROVED') }))
+    .filter(({ approved }) => approved.length > 0)
+    .sort((a, b) =>
+      a.d.diaryDate === b.d.diaryDate ? b.d.createdAt - a.d.createdAt : b.d.diaryDate.localeCompare(a.d.diaryDate),
+    )
+    .map(({ d, approved }) => ({
+      diaryId: d.diaryId,
+      diaryDate: d.diaryDate,
+      approvedCount: approved.length,
+      summary: approved.length > 1 ? `${approved[0].content} 외 ${approved.length - 1}개` : approved[0].content,
+    }));
+  return { from: from ?? null, to: to ?? null, records };
+}
+
+/** REPORT-02: 승인 항목만 섹션별로. 승인 항목이 없으면 404 (공동 관리자에게는 없는 기록) */
+export function dailyRecord(diaryId: number): DailyRecordDetail {
+  const d = find(diaryId);
+  const approved = d.items.filter((i) => i.status === 'APPROVED');
+  if (approved.length === 0) throw new ApiError(404, 'COMMON_NOT_FOUND', '정보를 찾을 수 없어요.');
+  const sections = SECTION_ORDER.flatMap((section) => {
+    const items = approved
+      .filter((i) => i.section === section)
+      .map((i) => ({ content: i.content, timeSlot: i.timeSlot ?? null, durationMin: i.durationMin ?? null }));
+    return items.length > 0 ? [{ section: section as DailyRecordDetail['sections'][number]['section'], items }] : [];
+  });
+  return { diaryId: d.diaryId, diaryDate: d.diaryDate, sections };
 }
 
 /* ───────────── REPORT-03 ───────────── */
