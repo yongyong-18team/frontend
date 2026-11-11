@@ -33,6 +33,12 @@ function defaultWeeklyStart() {
   return kst.toISOString().slice(0, 10);
 }
 
+/**
+ * 이번 버전에서 실제로 공유할 수 있는 문서 유형 (팀 결정 11/11)
+ * 일일 기록·주간 리포트는 화면에 보이기만 하고 선택은 안 됨. 나중에 열 때 여기에 추가
+ */
+const ENABLED_TYPES: DocumentType[] = ["GUIDE"];
+
 /** Figma 4.1 문서 유형 문구 */
 const TYPE_ITEMS: { type: DocumentType; label: string; description: string; unavailable: string }[] = [
   { type: "GUIDE", label: "돌봄 설명서", description: "누적된 개인별 돌봄 정보", unavailable: "" },
@@ -47,7 +53,9 @@ function defaultSelected(options: SectionOptionsResponse): ShareSectionCode[] {
 }
 
 /** 4.1 공유 범위 설정 (SHARE-01, 비상 연락처 번호는 GUIDE-01) */
-export default function ShareScopeView(props: Props) {
+export default function ShareScopeView(rawProps: Props) {
+  // 열리지 않은 유형으로 들어오면(예: 2.5·2.4 공유 버튼) 설명서로 시작
+  const props: Props = ENABLED_TYPES.includes(rawProps.initialType) ? rawProps : { ...rawProps, initialType: "GUIDE" };
   const { initialType, sourceDiaryId, periodStart } = props;
   const { state, retry } = useLoad(async () => {
     const [options, guide] = await Promise.all([
@@ -105,8 +113,8 @@ function ShareScopeForm({
   const [weeklyStart] = useState(() => periodStart ?? defaultWeeklyStart());
   const available: Record<DocumentType, boolean> = {
     GUIDE: true,
-    DAILY: sourceDiaryId !== null,
-    WEEKLY: true,
+    DAILY: ENABLED_TYPES.includes("DAILY") && sourceDiaryId !== null,
+    WEEKLY: ENABLED_TYPES.includes("WEEKLY"),
   };
 
   const [documentType, setDocumentType] = useState<DocumentType>(initialType);
@@ -191,7 +199,10 @@ function ShareScopeForm({
                 name="documentType"
                 value={item.type}
                 label={item.label}
-                description={available[item.type] ? item.description : item.unavailable}
+                description={
+                    // 이번 버전에서 막아 둔 유형은 원래 설명만 보여 주고 회색으로 (안내 문구 없음)
+                    available[item.type] || !ENABLED_TYPES.includes(item.type) ? item.description : item.unavailable
+                  }
                 checked={documentType === item.type}
                 disabled={!available[item.type] || loadingType}
                 onChange={() => changeType(item.type)}
