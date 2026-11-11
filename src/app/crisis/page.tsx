@@ -24,6 +24,7 @@ import Button from '@/components/common/Button';
 import Chip from '@/components/common/Chip';
 import Header from '@/components/common/Header';
 import { CRISIS_FALLBACK, getCrisisGuide, type CrisisContact, type CrisisGuide } from '@/lib/api/crisis';
+import { getBurnoutGuide } from '@/lib/api/resource';
 
 // B의 Icons.tsx 아이콘을 이름으로 꺼내 쓰기 위한 연결 (색은 className의 text-...로 지정)
 const ICONS = {
@@ -53,34 +54,41 @@ function toLines(contacts: CrisisContact[]) {
     }));
 }
 
-// 5.3 상세 /support/[resourceId] — 첫 줄은 SUP-02 followUp(부모상담 지원 1101), 둘째 줄은 가족휴식지원 1102 (SUP-01)
-function toResources(followUp: CrisisGuide['followUp']) {
-  const rest = {
-    id: 1102,
+// 5.3 상세 /support/[resourceId]
+// - 첫 줄: SUP-02 followUp (부모상담 지원)
+// - 둘째 줄: 가족휴식지원. 번호는 서버마다 달라서(실제 서버 4, 가짜 서버 1102) SUP-01 programs의 FAMILY_REST에서 찾음
+//   못 찾으면 없는 번호로 가지 않게 줄을 숨김
+type Rest = { resourceId: number; name: string } | null;
+
+function toResources(followUp: CrisisGuide['followUp'], rest: Rest) {
+  const restRow = rest && {
+    id: rest.resourceId,
     title: '가족휴식지원',
     desc: '보호자 휴식 지원',
     icon: 'coffee' as const,
     iconBg: 'bg-peach-soft',
     iconColor: 'text-peach-strong',
   };
-  if (!followUp) return [rest];
-  return [
-    {
-      id: followUp.resourceId,
-      title: followUp.name,
-      desc: '보호자 심리상담 연계',
-      icon: 'chat' as const,
-      iconBg: 'bg-mint-soft',
-      iconColor: 'text-mint-strong',
-    },
-    ...(followUp.resourceId === rest.id ? [] : [rest]),
-  ];
+  const followRow = followUp && {
+    id: followUp.resourceId,
+    title: followUp.name,
+    desc: '보호자 심리상담 연계',
+    icon: 'chat' as const,
+    iconBg: 'bg-mint-soft',
+    iconColor: 'text-mint-strong',
+  };
+  return [followRow, restRow && restRow.id !== followRow?.id ? restRow : null].filter(
+    (row): row is NonNullable<typeof row> => row !== null && row !== undefined,
+  );
 }
 
 export default function CrisisPage() {
   const router = useRouter();
   // 고정 문구로 먼저 그리고, 서버 응답이 오면 교체 (실패해도 고정 문구 그대로)
   const [guide, setGuide] = useState<CrisisGuide>(CRISIS_FALLBACK);
+
+  // 가족휴식지원 번호 (SUP-01). 응답 전·실패면 줄을 숨김
+  const [rest, setRest] = useState<Rest>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -89,13 +97,19 @@ export default function CrisisPage() {
         if (!cancelled && data.contacts.length > 0) setGuide(data);
       })
       .catch(() => {});
+    getBurnoutGuide()
+      .then((data) => {
+        const found = data.programs.find((p) => p.programType === 'FAMILY_REST');
+        if (!cancelled && found) setRest({ resourceId: found.resourceId, name: found.name });
+      })
+      .catch(() => {});
     return () => {
       cancelled = true;
     };
   }, []);
 
   const lines = toLines(guide.contacts);
-  const resources = toResources(guide.followUp);
+  const resources = toResources(guide.followUp, rest);
   const [headline, ...restMessage] = guide.message;
 
   return (
