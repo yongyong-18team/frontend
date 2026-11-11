@@ -113,3 +113,20 @@ test('글씨로 된 작은 버튼도 누르는 영역이 44px 이상 (PRD 5-5)',
   const all = (await visibleMain(page).getByRole('link', { name: '전체보기' }).boundingBox())!;
   expect(all.height).toBeGreaterThanOrEqual(44);
 });
+
+test('2.4 기간 필터: 지난달은 비고, 이번 주·전체는 오늘 기록이 보임', async ({ page }) => {
+  await writeAndAnalyze(page, DIARY);
+  await approveAll(page);
+  const main = visibleMain(page);
+  const row = main.getByText('오후에 공사 소리가 나자', { exact: false });
+
+  await main.getByRole('tab', { name: '지난달' }).click();
+  await expect(main.getByText('이 기간에는 기록이 없어요')).toBeVisible();
+  await expect(row).toHaveCount(0);
+
+  await main.getByRole('tab', { name: '이번 주' }).click();
+  await expect(row).toBeVisible();
+
+  await main.getByRole('tab', { name: '전체' }).click();
+  await expect(row).toBeVisible();
+});
