@@ -22,10 +22,10 @@ jobs:
           cache: npm
       - run: npm ci
       # 크롬 + 크롬이 쓰는 리눅스 부품 설치.
-      # 가끔 GitHub 서버가 우분투 저장소에 접속을 못 해서(일시적 네트워크 오류) 부품 설치가 실패함
-      # → 그럴 땐 크롬만 설치하고 진행 (ubuntu-latest에는 필요한 부품이 대부분 이미 있음)
+      # 가끔 GitHub 서버가 우분투 저장소에 접속을 못 해서(일시적 네트워크 오류) 부품 설치가 10분 넘게 붙잡혀 있다 실패함
+      # → 부품 설치는 최대 3분만 기다리고, 안 되면 크롬만 설치하고 진행 (ubuntu-latest에는 필요한 부품이 대부분 이미 있음)
       - name: Install Playwright Chromium
-        run: npx playwright install --with-deps chromium || npx playwright install chromium
+        run: timeout 180 npx playwright install --with-deps chromium || npx playwright install chromium
         timeout-minutes: 8
       - run: npm run test:e2e
         env:
