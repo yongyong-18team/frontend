@@ -38,7 +38,7 @@ export type GuideSection =
   | 'PREFERENCE';
 
 /** TODO(ERD v1.4): 추출 항목 분류 전체 목록. 명세 예시는 TRIGGER·BEHAVIOR */
-export type ItemCategory = 'TRIGGER' | 'BEHAVIOR' | 'COPING' | 'HEALTH' | 'PREFERENCE' | (string & {});
+export type ItemCategory = 'TRIGGER' | 'BEHAVIOR' | 'RESPONSE' | 'COPING' | 'HEALTH' | 'PREFERENCE' | (string & {});
 /** TODO(ERD v1.4): 시간대 전체 목록. 명세 예시는 AFTERNOON·EVENING */
 export type TimeSlot = 'MORNING' | 'AFTERNOON' | 'EVENING' | 'NIGHT' | (string & {});
 

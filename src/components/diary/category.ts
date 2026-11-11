@@ -36,6 +36,8 @@ const CATEGORY_CHIP: Record<string, { label: string; tone: ChipTone }> = {
   TRIGGER: { label: '상황·계기', tone: 'sky' },
   BEHAVIOR: { label: '행동 특성', tone: 'peach' },
   COPING: { label: '대처 방법', tone: 'mint' },
+  // 실제 서버는 대처 방법을 RESPONSE로 보냄 (2026-11-12 확인)
+  RESPONSE: { label: '대처 방법', tone: 'mint' },
   PREFERENCE: { label: '선호·비선호', tone: 'butter' },
 };
 

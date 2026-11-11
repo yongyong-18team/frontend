@@ -1,5 +1,6 @@
 // src/components/auth/LoginForm.tsx
 // 0.1-A 로그인 기본 (Figma 33:1530) / 0.1-B 로그인 오류 (Figma 33:1572)
+// 아이디·비밀번호 찾기는 기획 협의로 제외 (가입 시 연락처를 받지 않아 본인 확인 불가)
 // AUTH-03 → 토큰·대상자 저장 → 대상자 있으면 홈(또는 로그인 전에 보던 화면), 없으면 초대 확인·온보딩
 
 'use client';
@@ -104,17 +105,7 @@ export default function LoginForm() {
         </Button>
       </div>
 
-      {/* TODO(기획): 아이디·비밀번호 찾기 API가 명세에 없음 */}
-      <p className="flex items-center justify-center gap-3 text-caption leading-[1.45] text-text-secondary">
-        <button type="button" onClick={() => setNotice('아이디 찾기는 준비 중이에요.')}>
-          아이디 찾기
-        </button>
-        <span aria-hidden>|</span>
-        <button type="button" onClick={() => setNotice('비밀번호 찾기는 준비 중이에요.')}>
-          비밀번호 찾기
-        </button>
-      </p>
-
+      {/* 아이디·비밀번호 찾기: 기획 협의로 제외 (2026-11-12) */}
       <div className="flex items-center gap-[10px]" aria-hidden>
         <span className="h-px flex-1 bg-line-strong" />
         <span className="text-micro leading-[1.45] font-medium text-text-tertiary">간편 로그인</span>

@@ -17,16 +17,17 @@ export type RoleState = { phase: 'loading' } | { phase: 'done'; isOwner: boolean
 export function useSubjectRole(): { state: RoleState; retry: () => void } {
   // 서버 렌더링 중에는 localStorage를 못 읽으므로 undefined → 로딩
   const saved = useSyncExternalStore(subscribeSession, getSubjectRole, () => undefined);
+  // 대상자 ID가 없음(온보딩 전): 저장소에서 바로 읽음. 서버 렌더링 중에는 false
+  const noSubjectSaved = useSyncExternalStore(subscribeSession, () => getSubjectId() === null, () => false);
   const [fetchError, setFetchError] = useState<unknown>(null);
   const [attempt, setAttempt] = useState(0);
-  const [noSubject, setNoSubject] = useState(false);
+  // HOME-01이 "대상자 없음"으로 실패한 경우
+  const [noSubjectFetched, setNoSubject] = useState(false);
+  const noSubject = noSubjectSaved || noSubjectFetched;
 
   useEffect(() => {
     if (saved !== null) return; // 이미 알거나(문자열) 아직 서버 렌더링(undefined)
-    if (getSubjectId() === null) {
-      setNoSubject(true);
-      return;
-    }
+    if (getSubjectId() === null) return; // 대상자 없음 → 위에서 OWNER로 처리
     let cancelled = false;
     getHome()
       .then((home) => {
