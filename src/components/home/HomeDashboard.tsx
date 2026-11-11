@@ -67,10 +67,10 @@ function Dashboard({ data }: { data: HomeData }) {
         <h1 className="text-[24px] leading-[1.35] font-bold tracking-[-0.015em] text-text-primary">
           {withJosa(data.name, '와', '과')} 오늘도 함께해요
         </h1>
-        {data.daysTogether != null && data.daysTogether > 0 && (
+        {data.careDays != null && data.careDays > 0 && (
           <p className="flex items-center gap-1.5 text-[14px] leading-[1.45] text-text-secondary">
             함께 쌓아온 돌봄 기록
-            <Chip tone="primary">{data.daysTogether}일째</Chip>
+            <Chip tone="primary">{data.careDays}일째</Chip>
           </p>
         )}
       </header>
@@ -178,7 +178,11 @@ function RecentSection({ isOwner, activities }: { isOwner: boolean; activities: 
         </h2>
         {/* OWNER·공동 관리자 모두 /diary (역할에 따라 2.4 화면이 바뀜) */}
         {activities.length > 0 && (
-          <Link href={PATH.diaryList} className="text-caption leading-[1.45] font-medium text-text-tertiary">
+          // 누르는 영역 44px 이상 (PRD 5-5). 음수 여백으로 화면 배치는 그대로
+          <Link
+            href={PATH.diaryList}
+            className="-my-3 -mr-2 flex min-h-11 items-center py-3 pr-2 pl-3 text-caption leading-[1.45] font-medium text-text-tertiary"
+          >
             전체보기
           </Link>
         )}

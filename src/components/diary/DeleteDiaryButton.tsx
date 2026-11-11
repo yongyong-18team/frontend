@@ -40,7 +40,8 @@ export default function DeleteDiaryButton({ diaryId }: { diaryId: number }) {
           setError(null);
           setOpen(true);
         }}
-        className="px-1 text-body font-medium text-text-tertiary"
+        // 누르는 영역 44px 이상 (PRD 5-5 고령 사용자 기준). 음수 여백으로 화면 배치는 그대로
+        className="-mx-2 -my-3 flex min-h-11 min-w-11 items-center justify-center px-3 py-3 text-body font-medium text-text-tertiary"
       >
         삭제
       </button>
