@@ -6,9 +6,10 @@ import { Header, Chip, ErrorState, LoadingState } from "@/components/common";
 import { BuildingIcon, ChatIcon, ExternalLinkIcon, InfoIcon, MapPinIcon, PhoneIcon } from "@/components/icons/Icons";
 import { useResourceDetail } from "@/hooks/useSupport";
 import { ApiError, getErrorMessage } from "@/lib/api/client";
+import { TONE_BOX, programStyle } from "@/components/support/programStyle";
 import type { ResourceDetail } from "@/lib/api/resource";
 
-/** 5.2와 같은 표시: 시설 = 건물·하늘 / 제도 = 말풍선·민트 */
+/** 시설 = 건물·하늘 / 제도 = 종류별(5.4와 같음: 긴급돌봄 건물·하늘, 가족휴식 커피·복숭아, 상담 말풍선·민트) */
 const KIND_STYLE = {
   FACILITY: { label: "시설", tone: "sky", box: "bg-sky-soft text-sky-strong", Icon: BuildingIcon },
   PROGRAM: { label: "제도", tone: "mint", box: "bg-mint-soft text-mint-strong", Icon: ChatIcon },
@@ -69,7 +70,11 @@ export default function SupportDetailView({ resourceId }: { resourceId: number }
 }
 
 function SupportDetailBody({ detail }: { detail: ResourceDetail }) {
-  const k = KIND_STYLE[detail.kind];
+  // 제도면 종류(programType)에 맞는 아이콘·색, 시설이면 기본
+  const p = detail.kind === "PROGRAM" ? programStyle(detail.programType) : null;
+  const k = p
+    ? { label: KIND_STYLE.PROGRAM.label, tone: p.tone, box: TONE_BOX[p.tone], Icon: p.Icon }
+    : KIND_STYLE[detail.kind];
   const sub = detail.kind === "PROGRAM" ? `출처 · ${detail.sourceDoc}` : detail.facilityType;
   const hasPhone = hasValue(detail.phone);
 
