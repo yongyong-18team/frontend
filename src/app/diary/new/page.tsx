@@ -29,6 +29,8 @@ const MAX_LENGTH = 1000;
 
 // TODO: 온보딩에서 저장한 아이 이름으로 교체
 const STT_FAILED_MESSAGE = '음성을 글로 바꾸지 못했어요. 다시 시도하거나 직접 입력해 주세요.';
+// 실제 AI 연결 후: 아무 말 없이 녹음하면 서버가 빈 글자를 돌려줌
+const STT_EMPTY_MESSAGE = '목소리가 잘 들리지 않았어요. 다시 녹음하거나 직접 입력해 주세요.';
 
 // useSyncExternalStore용: 날짜는 화면에 있는 동안 바뀔 일이 없어 구독할 것이 없음
 const subscribeNothing = () => () => {};
@@ -115,6 +117,10 @@ export default function DiaryWritePage() {
     setTranscribing(true);
     try {
       const { text } = await transcribeAudio(audio);
+      if (!text?.trim()) {
+        setSttError(STT_EMPTY_MESSAGE);
+        return;
+      }
       // 이미 쓴 내용이 있으면 이어 붙임
       setContent((prev) => (prev.trim() ? `${prev.trim()}\n${text}` : text).slice(0, MAX_LENGTH));
       setFromRecording(true);

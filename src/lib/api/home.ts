@@ -28,10 +28,11 @@ export type HomeData = {
   recentActivities: RecentActivity[];
   pendingInvitationCount: number;
   /**
-   * "함께 쌓아온 돌봄 기록 32일째" 칩 숫자
-   * TODO(백엔드 A): Figma에 있지만 HOME-01 응답에 없음. 필드 추가 요청 (없으면 칩을 숨김)
+   * "함께 쌓아온 돌봄 기록 n일째" 칩 숫자 (백엔드 답변 2026-11-11)
+   * 가장 이른 일기 날짜부터 오늘(KST)까지, 첫날이 1일째. 일기가 없으면 null
+   * TODO(백엔드 A): 서버 구현 예정. 그 전까지 필드가 없으면 칩을 숨김
    */
-  daysTogether?: number | null;
+  careDays?: number | null;
 };
 
 /** HOME-01 */
@@ -50,7 +51,7 @@ export async function getHome(): Promise<HomeData> {
     name: subject.name,
     todayRecorded: diaries.todayRecorded,
     pendingInvitationCount: subject.pendingInvitationCount,
-    daysTogether: diaries.daysTogether,
+    careDays: diaries.daysTogether,
     recentActivities: diaries.recentActivities.map(({ analyzed, ...a }) => {
       void analyzed;
       return { ...a, preview: isOwner ? a.preview : null };

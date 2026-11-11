@@ -35,7 +35,7 @@ export default function AuthScreen() {
       {/* 로고 + 문구 */}
       <div className="relative px-7 pt-[62px]">
         <div className="size-[76px] overflow-hidden rounded-[22px] bg-bg-surface shadow-[0_6px_16px_rgba(184,84,59,0.14)]">
-          <img src="/images/logo.png" alt="용용 로고" width={76} height={76} className="size-[76px] object-cover" />
+          <img src="/images/logo.png" alt="돌봄바통 로고" width={76} height={76} className="size-[76px] object-cover" />
         </div>
         <div className="mt-[14px] flex flex-col gap-2">
           <h1 className="text-[27px] leading-[1.35] font-bold text-text-primary">

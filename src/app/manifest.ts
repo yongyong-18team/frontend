@@ -1,14 +1,14 @@
 // src/app/manifest.ts
 // 홈 화면에 추가(PWA)용 manifest — Next.js가 /manifest.webmanifest 로 만들고 <head>에 자동 연결합니다.
 // 아이콘: public/icons (로고 public/images/logo.png 에서 만듦), 아이폰용은 src/app/apple-icon.png
-// TODO(기획): 앱 이름 "용용"·설명 문구 확정 여부 확인
+// 앱 이름: 프로젝트명 "돌봄바통" (설명 문구는 TODO(기획) 확정 여부 확인)
 
 import type { MetadataRoute } from 'next';
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: '용용',
-    short_name: '용용',
+    name: '돌봄바통',
+    short_name: '돌봄바통',
     description: '오늘의 기록이 내일의 돌봄이 됩니다',
     lang: 'ko',
     start_url: '/home',

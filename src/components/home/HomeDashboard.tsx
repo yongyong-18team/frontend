@@ -67,10 +67,10 @@ function Dashboard({ data }: { data: HomeData }) {
         <h1 className="text-[24px] leading-[1.35] font-bold tracking-[-0.015em] text-text-primary">
           {withJosa(data.name, '와', '과')} 오늘도 함께해요
         </h1>
-        {data.daysTogether != null && data.daysTogether > 0 && (
+        {data.careDays != null && data.careDays > 0 && (
           <p className="flex items-center gap-1.5 text-[14px] leading-[1.45] text-text-secondary">
             함께 쌓아온 돌봄 기록
-            <Chip tone="primary">{data.daysTogether}일째</Chip>
+            <Chip tone="primary">{data.careDays}일째</Chip>
           </p>
         )}
       </header>

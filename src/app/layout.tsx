@@ -14,9 +14,9 @@ const notoSansKr = Noto_Sans_KR({
 
 // manifest·아이콘은 src/app/manifest.ts · apple-icon.png 가 자동으로 연결됨
 export const metadata: Metadata = {
-  title: "용용",
+  title: "돌봄바통",
   description: "오늘의 기록이 내일의 돌봄이 됩니다",
-  appleWebApp: { capable: true, title: "용용", statusBarStyle: "default" },
+  appleWebApp: { capable: true, title: "돌봄바통", statusBarStyle: "default" },
 };
 
 export const viewport: Viewport = {

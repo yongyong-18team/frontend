@@ -8,7 +8,7 @@ test('manifest와 아이콘이 연결돼 있음', async ({ page, request }) => {
   expect(href).toBeTruthy();
 
   const manifest = await (await request.get(href!)).json();
-  expect(manifest.name).toBe('용용');
+  expect(manifest.name).toBe('돌봄바통');
   expect(manifest.start_url).toBe('/home');
   expect(manifest.display).toBe('standalone');
 
@@ -21,5 +21,5 @@ test('manifest와 아이콘이 연결돼 있음', async ({ page, request }) => {
   // 아이폰 홈 화면 아이콘
   const apple = await page.locator('link[rel="apple-touch-icon"]').getAttribute('href');
   expect((await request.get(apple!)).status()).toBe(200);
-  await expect(page).toHaveTitle('용용');
+  await expect(page).toHaveTitle('돌봄바통');
 });

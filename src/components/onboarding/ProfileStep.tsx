@@ -50,6 +50,11 @@ export default function ProfileStep() {
     setTranscribing(true);
     try {
       const { text } = await transcribeAudio(audio);
+      // 아무 말 없이 녹음하면 서버가 빈 글자를 돌려줌 → 답은 그대로 두고 안내
+      if (!text?.trim()) {
+        setMessage('목소리가 잘 들리지 않았어요. 다시 녹음하거나 직접 입력해 주세요.');
+        return;
+      }
       updateDraft((d) => {
         const before = d.profile[key].trim();
         const next = before ? `${before} ${text.trim()}` : text.trim();

@@ -28,6 +28,8 @@ test('승인한 기록이 1.1 홈 최근 기록에 보임', async ({ page }) => 
   await page.goto('/home');
   const main = visibleMain(page);
   await expect(main.getByText('오늘 기록을 남겼어요')).toBeVisible();
+  // 홈 누적 일수 (HOME-01 careDays): 오늘 첫 기록 → 1일째
+  await expect(main.getByText('1일째')).toBeVisible();
   await expect(main.getByText('오후에 공사 소리가 나자', { exact: false })).toBeVisible();
 });
 
