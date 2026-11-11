@@ -1,0 +1,33 @@
+# .github/workflows/e2e.yml
+# PR을 올리거나 main에 합쳐질 때 E2E 자동 테스트(Playwright)를 돌립니다.
+# 가짜 서버(mock)로만 돌아가서 백엔드·Vercel 설정과 상관없습니다.
+# 실패하면 Actions 화면 맨 아래 Artifacts의 playwright-report를 내려받아 열어 보면 어느 화면에서 멈췄는지 보여요.
+
+name: E2E
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
+        env:
+          CI: '1'
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: playwright-report
+          retention-days: 7
