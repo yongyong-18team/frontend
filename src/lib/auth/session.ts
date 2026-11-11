@@ -15,6 +15,8 @@
 const TOKEN_KEY = 'yongyong.accessToken';
 const EXPIRES_AT_KEY = 'yongyong.tokenExpiresAt';
 const SUBJECT_ID_KEY = 'yongyong.subjectId';
+/** "대상자ID:역할" — 대상자가 바뀌면(초대 수락 등) 저장된 역할은 무시됨 */
+const SUBJECT_ROLE_KEY = 'yongyong.subjectRole';
 
 export type SubjectRole = 'OWNER' | 'CO_MANAGER';
 
@@ -106,17 +108,38 @@ export function setSubjectId(subjectId: number | null) {
   write(SUBJECT_ID_KEY, subjectId === null ? null : String(subjectId));
 }
 
+/* ───────────── 역할 (OWNER / 공동 관리자) ─────────────
+   2.4 돌봄 기록처럼 역할마다 화면이 다른 곳에서 사용.
+   로그인 응답(AUTH-03)·온보딩(OWNER)에서 저장하고, 모르면 HOME-01의 role로 채웁니다 (useSubjectRole). */
+
+/** 현재 대상자에 대한 내 역할. 저장된 적 없거나 다른 대상자의 역할이면 null */
+export function getSubjectRole(): string | null {
+  const saved = read(SUBJECT_ROLE_KEY);
+  const subjectId = getSubjectId();
+  if (!saved || subjectId === null) return null;
+  const at = saved.indexOf(':');
+  return saved.slice(0, at) === String(subjectId) ? saved.slice(at + 1) || null : null;
+}
+
+export function setSubjectRole(subjectId: number, role: string) {
+  write(SUBJECT_ROLE_KEY, `${subjectId}:${role}`);
+}
+
 /* ───────────── 로그인·로그아웃 ───────────── */
 
 /** 로그인 응답(AUTH-03)을 저장. 대상자가 있으면 첫 번째 대상자를 현재 대상자로 */
 export function saveLogin(data: LoginSessionData) {
   setAccessToken(data.accessToken, data.expiresIn);
-  setSubjectId(data.subjects[0]?.subjectId ?? null);
+  const first = data.subjects[0];
+  setSubjectId(first?.subjectId ?? null);
+  if (first?.role) setSubjectRole(first.subjectId, first.role);
+  else write(SUBJECT_ROLE_KEY, null);
 }
 
-/** 로그아웃: 토큰과 대상자 ID 삭제 */
+/** 로그아웃: 토큰과 대상자 ID·역할 삭제 */
 export function clearSession() {
   write(TOKEN_KEY, null);
   write(EXPIRES_AT_KEY, null);
   write(SUBJECT_ID_KEY, null);
+  write(SUBJECT_ROLE_KEY, null);
 }

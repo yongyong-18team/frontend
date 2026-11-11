@@ -6,9 +6,8 @@
 import { api, subjectPath } from '@/lib/api/client';
 import type { GuideSection, TimeSlot } from '@/lib/api/diary';
 import * as mock from '@/lib/api/mock/store';
+import { isReal } from '@/lib/api/realApi';
 
-void api;
-void subjectPath;
 
 export type DailyTrend = { date: string; recordCount: number; behaviorCount: number };
 export type KeyChange = { diaryId: number; diaryDate: string; section: GuideSection; content: string };
@@ -39,7 +38,7 @@ export type WeeklyReport = {
 
 /** REPORT-03 주간 리포트: endDate 포함 최근 7일 (생략하면 오늘) */
 export async function getWeeklyReport(endDate?: string): Promise<WeeklyReport> {
-  // return api.get<WeeklyReport>(subjectPath('/weekly-reports'), { query: { endDate } });
+  if (isReal('report')) return api.get<WeeklyReport>(subjectPath('/weekly-reports'), { query: { endDate } });
 
   // ── 가짜 응답 ──
   await mock.delay(600);

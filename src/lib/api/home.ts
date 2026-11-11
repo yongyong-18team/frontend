@@ -5,11 +5,11 @@
 import { api, subjectPath } from '@/lib/api/client';
 import * as mockAuth from '@/lib/api/mock/auth';
 import * as mockStore from '@/lib/api/mock/store';
+import { isReal } from '@/lib/api/realApi';
 import type { SubjectRole } from '@/lib/auth/session';
 import { getSubjectId } from '@/lib/auth/session';
 import { toDateKey } from '@/lib/date';
 
-void api;
 
 export type RecentActivity = {
   diaryId: number;
@@ -36,7 +36,7 @@ export type HomeData = {
 
 /** HOME-01 */
 export async function getHome(): Promise<HomeData> {
-  // return api.get<HomeData>(subjectPath('/home'));
+  if (isReal('home')) return api.get<HomeData>(subjectPath('/home'));
 
   // ── 가짜 응답 ──
   const path = subjectPath('/home'); // 대상자가 없으면 여기서 NO_SUBJECT 오류 (실제와 같게)

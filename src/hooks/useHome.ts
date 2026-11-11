@@ -6,6 +6,7 @@
 import { useEffect, useState } from 'react';
 
 import { getHome, type HomeData } from '@/lib/api/home';
+import { getSubjectId, setSubjectRole } from '@/lib/auth/session';
 
 export type HomeState =
   | { phase: 'loading' }
@@ -19,7 +20,13 @@ export function useHome() {
   useEffect(() => {
     let cancelled = false;
     getHome()
-      .then((data) => !cancelled && setState({ phase: 'done', data }))
+      .then((data) => {
+        if (cancelled) return;
+        // 역할 기억 (2.4 돌봄 기록 탭이 OWNER·공동 관리자 화면을 고를 때 사용)
+        const subjectId = getSubjectId();
+        if (subjectId !== null && data.role) setSubjectRole(subjectId, data.role);
+        setState({ phase: 'done', data });
+      })
       .catch((error) => !cancelled && setState({ phase: 'error', error }));
     return () => {
       cancelled = true;

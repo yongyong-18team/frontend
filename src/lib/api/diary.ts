@@ -13,8 +13,8 @@
 
 import { ApiError, api, subjectPath } from '@/lib/api/client';
 import * as mock from '@/lib/api/mock/store';
+import { isReal } from '@/lib/api/realApi';
 
-void api;
 void subjectPath;
 
 /* ───────────── 타입 (명세 그대로) ───────────── */
@@ -139,10 +139,12 @@ export const STT_MAX_BYTES = 10 * 1024 * 1024;
 
 /** STT-01 음성 → 텍스트 (음성은 저장되지 않음) */
 export async function transcribeAudio(audio: Blob): Promise<{ text: string }> {
-  // const form = new FormData();
-  // const ext = audio.type.includes('mp4') || audio.type.includes('m4a') ? 'm4a' : 'webm';
-  // form.append('audio', audio, `diary.${ext}`);
-  // return api.post<{ text: string }>('/stt', form, { timeoutMs: STT_TIMEOUT_MS });
+  if (isReal('diary')) {
+    const form = new FormData();
+    const ext = audio.type.includes('mp4') || audio.type.includes('m4a') ? 'm4a' : 'webm';
+    form.append('audio', audio, `diary.${ext}`);
+    return api.post<{ text: string }>('/stt', form, { timeoutMs: STT_TIMEOUT_MS });
+  }
 
   // ── 가짜 응답: 서버 없이는 음성을 글로 바꿀 수 없어 고정 문장 (명세의 AI_MODE=mock과 같음) ──
   void STT_TIMEOUT_MS;
@@ -157,7 +159,7 @@ export async function transcribeAudio(audio: Blob): Promise<{ text: string }> {
 
 /** DIARY-01 일기 저장 */
 export async function createDiary(input: CreateDiaryInput): Promise<CreateDiaryResult> {
-  // return api.post<CreateDiaryResult>(subjectPath('/diaries'), input);
+  if (isReal('diary')) return api.post<CreateDiaryResult>(subjectPath('/diaries'), input);
 
   // ── 가짜 응답 ──
   await mock.delay(600);
@@ -167,9 +169,11 @@ export async function createDiary(input: CreateDiaryInput): Promise<CreateDiaryR
 
 /** DIARY-02 AI 분석 (동기, 최대 25초) */
 export async function analyzeDiary(diaryId: number): Promise<AnalyzeResult> {
-  // return api.post<AnalyzeResult>(subjectPath(`/diaries/${diaryId}/analyze`), undefined, {
-  //   timeoutMs: ANALYZE_TIMEOUT_MS,
-  // });
+  if (isReal('diary')) {
+    return api.post<AnalyzeResult>(subjectPath(`/diaries/${diaryId}/analyze`), undefined, {
+      timeoutMs: ANALYZE_TIMEOUT_MS,
+    });
+  }
 
   // ── 가짜 응답 (분석 3초 흉내) ──
   void ANALYZE_TIMEOUT_MS;
@@ -178,7 +182,7 @@ export async function analyzeDiary(diaryId: number): Promise<AnalyzeResult> {
 
 /** DIARY-03 일기 목록 (기간 필터는 from/to) */
 export async function getDiaryList(query: DiaryListQuery = {}): Promise<DiaryListPage> {
-  // return api.get<DiaryListPage>(subjectPath('/diaries'), { query });
+  if (isReal('diary')) return api.get<DiaryListPage>(subjectPath('/diaries'), { query });
 
   // ── 가짜 응답 ──
   await mock.delay(500);
@@ -187,7 +191,7 @@ export async function getDiaryList(query: DiaryListQuery = {}): Promise<DiaryLis
 
 /** DIARY-04 일기 상세 (원문, 공감, 추출 항목) */
 export async function getDiaryDetail(diaryId: number): Promise<DiaryDetail> {
-  // return api.get<DiaryDetail>(subjectPath(`/diaries/${diaryId}`));
+  if (isReal('diary')) return api.get<DiaryDetail>(subjectPath(`/diaries/${diaryId}`));
 
   // ── 가짜 응답 ──
   await mock.delay(400);
@@ -196,7 +200,7 @@ export async function getDiaryDetail(diaryId: number): Promise<DiaryDetail> {
 
 /** ITEM-01 검토·반영: 승인(수정 포함)한 항목을 설명서에 반영 */
 export async function reviewDiaryItems(diaryId: number, decisions: ReviewDecision[]): Promise<ReviewResult> {
-  // return api.post<ReviewResult>(subjectPath(`/diaries/${diaryId}/items/review`), { decisions });
+  if (isReal('diary')) return api.post<ReviewResult>(subjectPath(`/diaries/${diaryId}/items/review`), { decisions });
 
   // ── 가짜 응답 ──
   await mock.delay(800);
@@ -205,7 +209,10 @@ export async function reviewDiaryItems(diaryId: number, decisions: ReviewDecisio
 
 /** DIARY-05 일기 삭제 (연결된 분석·추출 데이터도 함께 삭제) */
 export async function deleteDiary(diaryId: number): Promise<void> {
-  // return api.delete<void>(subjectPath(`/diaries/${diaryId}`));
+  if (isReal('diary')) {
+    await api.delete<void>(subjectPath(`/diaries/${diaryId}`));
+    return;
+  }
 
   // ── 가짜 응답 ──
   await mock.delay(500);
