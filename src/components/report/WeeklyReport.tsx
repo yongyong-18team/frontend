@@ -7,6 +7,8 @@
 //   - 새로 반영된 정보 (keyChanges) → 누르면 그 일기 상세(2.3)
 //   - 기록 0건 → "생성 불가" 안내
 //   - "리포트 공유하기" → B의 공유 화면 (/share?documentType=WEEKLY&periodStart=…)
+//     서버의 주간 리포트 공유(SHARE-01·02 WEEKLY)가 미구현이라 (백엔드 답변 2026-11-11) 팀 결정으로 버튼을 숨김
+//     TODO(백엔드 C): 구현되면 WEEKLY_SHARE_READY를 true로
 
 'use client';
 
@@ -24,6 +26,9 @@ import type { DailyTrend, KeyChange, WeeklyReport as WeeklyReportData } from '@/
 import { formatMonthDay, fromDateKey, weekdayLabel } from '@/lib/date';
 
 const TITLE = '주간 돌봄 리포트';
+
+/** 주간 리포트 공유 버튼 표시 여부. 서버가 WEEKLY 공유를 구현하면 true로 */
+const WEEKLY_SHARE_READY = false;
 
 /** 막대 최대 높이 78px, 0건은 6px 회색 막대 (Figma 기준) */
 const BAR_MAX = 78;
@@ -105,9 +110,11 @@ export default function WeeklyReport({ endDate }: { endDate?: string }) {
         <PatternAndChanges report={report} />
       </div>
 
-      <div className="mt-auto pt-6">
-        <Button onClick={() => router.push(shareHref)}>리포트 공유하기</Button>
-      </div>
+      {WEEKLY_SHARE_READY && (
+        <div className="mt-auto pt-6">
+          <Button onClick={() => router.push(shareHref)}>리포트 공유하기</Button>
+        </div>
+      )}
     </DiaryPageShell>
   );
 }
