@@ -69,6 +69,11 @@ test('위기 신호가 있으면 5.5 위기 안내로 (전화 연결 번호)', a
   for (const number of ['109', '15770199', '119', '112']) {
     await expect(main.locator(`a[href="tel:${number}"]`).first()).toBeVisible();
   }
+  // 5.3 연결: 부모상담 지원 + 가족휴식지원 (가족휴식지원 번호는 SUP-01에서 찾음)
+  await expect(main.getByRole('link', { name: /가족휴식지원/ })).toHaveAttribute('href', '/support/1102');
+  await main.getByRole('link', { name: /가족휴식지원/ }).click();
+  await expect(page).toHaveURL(/\/support\/1102/);
+  await expect(visibleMain(page).getByText('지원 정보를 찾을 수 없어요', { exact: false })).toHaveCount(0);
 });
 
 test('쓰다가 로그인이 만료돼도 다시 로그인하면 쓰던 내용이 남아 있음 (PRD 5-5)', async ({ page }) => {
