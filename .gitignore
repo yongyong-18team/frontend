@@ -42,3 +42,10 @@ next-env.d.ts
 
 .vercel
 .env*
+
+
+# playwright (E2E 테스트 결과)
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
