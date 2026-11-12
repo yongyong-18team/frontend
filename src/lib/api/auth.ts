@@ -89,7 +89,8 @@ const INVITATIONS_PATH = '/settings/invitations';
 
 /** 같은 사이트 안의 주소만 허용 (외부 주소로 보내는 것 방지) */
 function safeNext(next: string | null | undefined) {
-  if (!next || !next.startsWith('/') || next.startsWith('//') || next.startsWith('/login')) return null;
+  // 첫 주소(/)는 홈과 같으니 홈으로
+  if (!next || next === '/' || !next.startsWith('/') || next.startsWith('//') || next.startsWith('/login')) return null;
   return next;
 }
 

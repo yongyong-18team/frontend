@@ -76,3 +76,18 @@ test('로그인 화면에 아이디·비밀번호 찾기가 없음 (기획 협�
   await expect(page.getByText('아이디 찾기')).toHaveCount(0);
   await expect(page.getByText('비밀번호 찾기')).toHaveCount(0);
 });
+
+test('첫 주소(/)로 들어오면 로그인 후 바로 홈', async ({ page }) => {
+  await page.goto('/');
+  await expect(page).toHaveURL(/\/login/);
+  await page.getByPlaceholder('아이디를 입력해 주세요').fill(OWNER.id);
+  await page.getByPlaceholder('비밀번호를 입력해 주세요').fill(OWNER.password);
+  await page.getByRole('button', { name: '로그인', exact: true }).click();
+  await expect(page).toHaveURL(/\/home$/);
+  await expect(visibleMain(page).getByRole('heading', { name: '민준과 오늘도 함께해요' })).toBeVisible();
+
+  // 로그인한 상태로 / 에 가도 홈
+  await page.goto('/');
+  await expect(page).toHaveURL(/\/home$/);
+  await expect(page.getByText('디자인 토큰 적용 테스트')).toHaveCount(0);
+});
