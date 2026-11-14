@@ -34,10 +34,11 @@ function defaultWeeklyStart() {
 }
 
 /**
- * 이번 버전에서 실제로 공유할 수 있는 문서 유형 (팀 결정 11/11)
- * 일일 기록·주간 리포트는 화면에 보이기만 하고 선택은 안 됨. 나중에 열 때 여기에 추가
+ * 이번 버전에서 실제로 공유할 수 있는 문서 유형 (팀 결정 11/11, 일일 기록은 11/15에 엶)
+ * - 일일 기록: 2.3·공동 관리자 일일 기록 상세의 "이 기록 공유하기"로 들어왔을 때만 선택 가능 (서버 SHARE-01·02 DAILY 동작 확인)
+ * - 주간 리포트: 화면에 보이기만 하고 선택은 안 됨 (서버 미구현). 나중에 열 때 여기에 추가
  */
-const ENABLED_TYPES: DocumentType[] = ["GUIDE"];
+const ENABLED_TYPES: DocumentType[] = ["GUIDE", "DAILY"];
 
 /** Figma 4.1 문서 유형 문구 */
 const TYPE_ITEMS: { type: DocumentType; label: string; description: string; unavailable: string }[] = [

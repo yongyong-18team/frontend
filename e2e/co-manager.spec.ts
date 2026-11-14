@@ -34,6 +34,11 @@ test('공동 관리자는 반영된 기록만, 원문 없이 봄', async ({ page
   await expect(detail.getByRole('heading', { name: '행동 특성과 위기 대응' })).toBeVisible();
   await expect(detail.getByText('30분 넘게 소리를 질렀어요')).toBeVisible();
   await expect(detail.getByRole('button', { name: '삭제', exact: true })).toHaveCount(0);
+
+  // 공동 관리자도 승인된 일일 기록 공유 가능 (PRD) → 4.1에서 일일 기록 선택됨
+  await detail.getByRole('button', { name: '이 기록 공유하기' }).click();
+  await expect(page).toHaveURL(/\/share\?documentType=DAILY&sourceDiaryId=\d+/);
+  await expect(page.getByRole('radio', { name: /일일 기록/ })).toBeChecked();
 });
 
 test('공동 관리자 홈 최근 기록 → 일일 기록 상세', async ({ page }) => {

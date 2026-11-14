@@ -130,3 +130,23 @@ test('2.4 기간 필터: 지난달은 비고, 이번 주·전체는 오늘 기�
   await main.getByRole('tab', { name: '전체' }).click();
   await expect(row).toBeVisible();
 });
+
+test('일일 기록 공유: 2.3 "이 기록 공유하기" → 4.1에서 일일 기록이 선택됨 (PRD 2.4)', async ({ page }) => {
+  const diaryId = await writeAndAnalyze(page, DIARY);
+  await approveAll(page);
+
+  await page.goto(`/diary/${diaryId}/review`);
+  await visibleMain(page).getByRole('button', { name: '이 기록 공유하기' }).click();
+  await expect(page).toHaveURL(new RegExp(`/share\\?documentType=DAILY&sourceDiaryId=${diaryId}`));
+  const daily = page.getByRole('radio', { name: /일일 기록/ });
+  await expect(daily).toBeChecked();
+  await expect(daily).toBeEnabled();
+});
+
+test('승인한 항목이 없는 기록은 공유 버튼이 안 보임', async ({ page }) => {
+  await writeAndAnalyze(page, DIARY);
+  await page.getByRole('button', { name: '추출 정보 검토하기' }).click({ timeout: 20_000 });
+  const main = visibleMain(page);
+  await expect(main.getByRole('button', { name: '삭제', exact: true })).toBeVisible();
+  await expect(main.getByRole('button', { name: '이 기록 공유하기' })).toHaveCount(0);
+});
