@@ -1,6 +1,7 @@
 // src/components/diary/DailyRecordDetail.tsx
 // 2.4 일일 기록 상세 — 공동 관리자(CO) 화면 (REPORT-02)
 // - 그날 설명서에 반영된 항목만, 설명서 섹션별로 보여줌 (원문 없음, 보기만)
+// - 아래 "이 기록 공유하기" → 4.1 일일 기록 공유 (PRD: 공동 관리자도 승인된 일일 기록 공유 가능)
 // TODO(디자인): Figma에 화면이 없어 2.2·2.3과 같은 틀(DiaryPageShell)에 섹션 카드로 둠
 
 'use client';
@@ -10,6 +11,7 @@ import { useRouter } from 'next/navigation';
 import { EmptyState, ErrorState, LoadingState } from '@/components/common/StateView';
 import DiaryPageShell from '@/components/diary/DiaryPageShell';
 import { SECTION_LABEL, timeSlotLabel } from '@/components/diary/category';
+import { ShareDiaryButton } from '@/components/diary/ShareDiaryButton';
 import { SectionIcon, SECTION_TONE, TONE_CLASS } from '@/components/icons/SectionIcons';
 import { useLoad } from '@/hooks/useLoad';
 import { ApiError, getErrorMessage } from '@/lib/api/client';
@@ -83,6 +85,7 @@ export default function DailyRecordDetail({ diaryId }: { diaryId: number }) {
               </section>
             );
           })}
+          <ShareDiaryButton diaryId={state.data.diaryId} className="mt-3" />
         </div>
       )}
     </DiaryPageShell>

@@ -10,6 +10,7 @@
 // - 검토 대기 항목이 남은 채로 반영하면 확인 팝업 → 검토 대기 항목은 그대로 남음
 // - 바꾼 내용이 있는데 뒤로가기 → "저장하지 않고 나가시겠어요?" (기획 문구 확정안 v1.4)
 // - 오른쪽 위 "삭제" → DIARY-05
+// - 오른쪽 위 "공유" → 4.1 일일 기록 공유 (이미 승인된 항목이 있을 때만. 공유는 승인 정보만 사용)
 
 'use client';
 
@@ -22,6 +23,7 @@ import { Modal } from '@/components/common/Overlay';
 import { EmptyState, ErrorState, LoadingState } from '@/components/common/StateView';
 import DiaryPageShell from '@/components/diary/DiaryPageShell';
 import DeleteDiaryButton from '@/components/diary/DeleteDiaryButton';
+import { ShareDiaryButton } from '@/components/diary/ShareDiaryButton';
 import ItemEditDialog from '@/components/diary/ItemEditDialog';
 import ReviewItemCard from '@/components/diary/ReviewItemCard';
 import { useDiaryDetail } from '@/hooks/useDiaryDetail';
@@ -185,7 +187,12 @@ function ReviewForm({ diaryId, items, onDone }: { diaryId: number; items: DiaryI
   }, [hasChanges]);
 
   return (
-    <DiaryPageShell title={TITLE} desc={DESC} onBack={handleBack} right={<DeleteDiaryButton diaryId={diaryId} />}>
+    <DiaryPageShell
+      title={TITLE}
+      desc={DESC}
+      onBack={handleBack}
+      right={<DeleteDiaryButton diaryId={diaryId} />}
+    >
       <ul className="mt-3.5 flex flex-col gap-3.5">
         {items.map((item) => {
           const now = review[item.itemNo];
@@ -225,6 +232,8 @@ function ReviewForm({ diaryId, items, onDone }: { diaryId: number; items: DiaryI
         <Button className="mt-3.5" onClick={handleSubmitClick} disabled={!canSubmit}>
           {submitLabel}
         </Button>
+        {/* 일일 기록 공유: 서버에 이미 승인된 항목이 있을 때만 (공유는 승인 정보만 사용) */}
+        {items.some((item) => item.status === 'APPROVED') && <ShareDiaryButton diaryId={diaryId} className="mt-2.5" />}
       </div>
 
       {/* 수정: 항목 문장 고치기 → 승인 상태로 바꿈 (수정 후 승인) */}
