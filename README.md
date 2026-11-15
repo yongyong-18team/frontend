@@ -18,10 +18,10 @@
 
 <table>
   <tr>
-    <td align="center"><img src="https://github.com/user-attachments/assets/ba23bf90-2c68-414e-9023-c7e74b5202fc" width="180" alt="3.1 돌봄 설명서"></td>
-    <td align="center"><img src="공유이미지주소" width="180" alt="4.1 공유 범위 설정"></td>
-    <td align="center"><img src="https://github.com/user-attachments/assets/141fa2db-0530-491f-93ef-d42c41f6a653" width="180" alt="5.0 돌봄 지원 메뉴"></td>
-    <td align="center"><img src="https://github.com/user-attachments/assets/3daa1b65-95a7-402b-9ecc-c261ac2e9bd7" width="180" alt="6.1 마이페이지"></td>
+    <td align="center"><img src="https://github.com/user-attachments/assets/123fc8bf-634a-41f5-86c4-b6a93c6a80da" width="180" alt="3.1 돌봄 설명서"></td>
+    <td align="center"><img src="https://github.com/user-attachments/assets/404e9046-7bab-4126-813d-c119294c4314" width="180" alt="4.1 공유 범위 설정"></td>
+    <td align="center"><img src="https://github.com/user-attachments/assets/dd18361e-ba47-4ede-b925-708cb800bd38" width="180" alt="5.0 돌봄 지원"></td>
+    <td align="center"><img src="https://github.com/user-attachments/assets/2b3ac733-76df-46d8-8c40-4b8902e1554d" width="180" alt="6.1 마이페이지"></td>
   </tr>
   <tr>
     <td align="center"><b>돌봄 설명서</b><br><code>/guide</code></td>
@@ -30,6 +30,8 @@
     <td align="center"><b>마이페이지</b><br><code>/settings</code></td>
   </tr>
 </table>
+
+> 화면 이미지는 Figma 디자인 기준이며, 이름·연락처 등은 모두 가상 데이터입니다.
 
 ### 돌봄 설명서 `/guide`
 
