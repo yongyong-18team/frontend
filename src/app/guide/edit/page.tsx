@@ -168,9 +168,9 @@ function GuideEditForm({ guide, subject }: { guide: GuideData; subject: SubjectD
     if (trimmedName !== subject.name) subjectPatch.name = trimmedName;
     if (Number(birthYear) !== subject.birthYear) subjectPatch.birthYear = Number(birthYear);
     if (district !== subject.district) subjectPatch.district = district;
-    if (dong.trim() !== (subject.dong ?? "")) subjectPatch.dong = dong.trim() || null;
+    if (dong.trim() !== (subject.dong ?? "")) subjectPatch.dong = dong.trim();
     if (emergencyContact.trim() !== (subject.emergencyContact ?? ""))
-      subjectPatch.emergencyContact = emergencyContact.trim() || null;
+      subjectPatch.emergencyContact = emergencyContact.trim();
 
     // 3. GUIDE-02 / 03 / 04 대상
     const added = drafts.filter((d) => d.entryId === null && !d.deleted && d.content.trim() !== "");
